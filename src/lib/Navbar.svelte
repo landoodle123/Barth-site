@@ -52,10 +52,4 @@
         style="background-image: url('/barthnavbar.png');"
 >
     <div class="navbar-text">GREAT REALM OF BARTHOLOMUE</div>
-    <div class="navbar-links">
-        <a href="index.html">Home</a>
-        <a href="bartholomue-pictures.html">Pictures</a>
-        <div class="navbar-icons">
-        </div>
-    </div>
 </div>
