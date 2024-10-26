@@ -1,0 +1,80 @@
+:root {
+  font-family: system-ui, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+}
+
+body {
+  display: flex; /* Use Flexbox for centering */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  min-height: 100vh; /* Full height of viewport */
+  margin: 0; /* Remove default margin */
+}
+
+img {
+  max-width: 100%; /* Ensure image is responsive */
+  height: auto; /* Maintain aspect ratio */
+}
+
+.button {
+  background-color: white; /* Button background color */
+  color: black;            /* Text color */
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif; /* Font family */
+  border: none;           /* No border */
+  border-radius: 25px;   /* Rounded corners */
+  padding: 10px 20px;    /* Padding for the button */
+  cursor: pointer;        /* Pointer cursor on hover */
+  transition: background-color 0.3s; /* Smooth background change on hover */
+}
+
+.button:hover {
+  background-color: #f0f0f0; /* Light gray background on hover */
+}
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background-size: cover;
+  background-position: center;
+  height: 60px;
+  color: black;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000; /* Ensures the navbar is above other elements */
+  border-bottom: 2px solid white; /* Adds a border at the bottom */
+}
+
+.navbar-text {
+  font-size: 48px;
+  font-weight: bold;
+  font-style: italic;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 15px;
+}
+
+.navbar-links a {
+  text-decoration: none;
+  color: black;
+  font-size: 24px;
+}
+
+main {
+  padding-top: 60px; /* Prevents content from being hidden behind the navbar */
+}
