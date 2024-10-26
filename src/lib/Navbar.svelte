@@ -56,9 +56,6 @@
         <a href="index.html">Home</a>
         <a href="bartholomue-pictures.html">Pictures</a>
         <div class="navbar-icons">
-            <a href="https://discord.gg/A5gDZBykZ3">
-                <img src="/public/discord.png" alt="discord server"> <!-- Ensure the path is accessible -->
-            </a>
         </div>
     </div>
 </div>
