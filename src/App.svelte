@@ -24,6 +24,17 @@
   <Navbar/>
   <h1>Welcome to the Great Realm of Bartholomue!</h1>
   <h2>The best site ever</h2>
-  <button class="button" on:click={count = count+1}>Pet bartholomue ✋🐈</button>
+  <button class="button" on:click={incrementCount}>Pet bartholomue ✋🐈</button>
   <p>Bartholomue has been petted {count} times.</p>
 </main>
+
+<style>
+  .button {
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+</style>
