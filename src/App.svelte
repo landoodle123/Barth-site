@@ -26,15 +26,18 @@
   <h2>The best site ever</h2>
   <button class="button" on:click={incrementCount}>Pet bartholomue ✋🐈</button>
   <p>Bartholomue has been petted {count} times.</p>
+  <button class="resetbutton" on:click={count = 0}>Reset</button>
 </main>
 
 <style>
-  .button {
-    padding: 10px;
-    background-color: #4CAF50;
+  .resetbutton {
+    background-color: red;
     color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif; /* Font family */
+    border: none;           /* No border */
+    border-radius: 25px;   /* Rounded corners */
+    padding: 10px 20px;    /* Padding for the button */
+    cursor: pointer;        /* Pointer cursor on hover */
+    transition: background-color 0.3s; /* Smooth background change on hover */
   }
 </style>
