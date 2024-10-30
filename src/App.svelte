@@ -27,6 +27,8 @@
   <button class="button" on:click={incrementCount}>Pet bartholomue ✋🐈</button>
   <p>Bartholomue has been petted {count} times.</p>
   <button class="resetbutton" on:click={count = 0}>Reset</button>
+  <h1>Pictures</h1>
+  <img src="public/bartholomue.png" alt="bartholomu">
 </main>
 
 <style>
