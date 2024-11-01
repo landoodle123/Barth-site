@@ -1,34 +1,73 @@
 <script>
   import Navbar from './lib/Navbar.svelte';
   let count = 0;
+  let clickerRunning = false;
 
-  // Load the count from localStorage when the app starts
+  // Load the count and clickerRunning state from localStorage when the app starts
   if (localStorage.getItem('count')) {
     count = parseInt(localStorage.getItem('count'), 10);
   }
+  if (localStorage.getItem('clickerRunning')) {
+    clickerRunning = localStorage.getItem('clickerRunning') === 'true';
+  }
 
-  // Function to save the count to localStorage
-  function saveCount() {
-    localStorage.setItem('count', count.toString()); // Convert count to a string
-    console.log('The count has been saved to localStorage');
+  // Function to save the count and clickerRunning state to localStorage
+  function saveState() {
+    localStorage.setItem('count', count.toString());
+    localStorage.setItem('clickerRunning', clickerRunning.toString());
+    console.log('State has been saved to localStorage');
+  }
+
+  async function clicker() {
+    while (clickerRunning) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      count += 1;
+      saveState(); // Save the updated state
+    }
+  }
+
+  function buyClicker() {
+    if (count >= 100) {
+      if (!clickerRunning) {
+        clickerRunning = true;
+        saveState(); // Update clickerRunning in localStorage
+        clicker();
+      }
+      count -= 100;
+      saveState();
+    } else {
+      console.log("Not enough points to start the clicker.");
+    }
   }
 
   // Update the count when the button is clicked
   function incrementCount() {
     count += 1;
-    saveCount();
+    saveState();
+  }
+
+  function reset() {
+    count = 0;
+    clickerRunning = false;
+    saveState();
+  }
+
+  // Start the clicker if clickerRunning is true on page load
+  if (clickerRunning) {
+    clicker();
   }
 </script>
 
 <main>
-  <Navbar/>
+  <Navbar />
   <h1>Welcome to the Great Realm of Bartholomue!</h1>
   <h2>The best site ever</h2>
-  <button class="button" on:click={incrementCount}>Pet bartholomue ✋🐈</button>
+  <button class="button" on:click={incrementCount}>Pet Bartholomue ✋🐈</button>
   <p>Bartholomue has been petted {count} times.</p>
-  <button class="resetbutton" on:click={count = 0}>Reset</button>
-  <h1>Pictures</h1>
-  <img src="/bartholomue.png" alt="bartholomu" />
+  <button class="resetbutton" on:click={reset}>Reset</button>
+  <br>
+  <br>
+  <button on:click={buyClicker} class="button">Add Clicker (100 clicks)</button>
 </main>
 
 <style>
