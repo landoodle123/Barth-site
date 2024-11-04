@@ -1,46 +1,50 @@
 <script>
   import Navbar from './lib/Navbar.svelte';
   let count = 0;
-  let clickerRunning = false;
+  let clickerCount = 0; // Number of clickers purchased
+  let clickerCost = 100; // Initial cost of a clicker
+  let clickerIntervals = []; // Array to hold intervals for each clicker
 
-  // Load the count and clickerRunning state from localStorage when the app starts
+  // Load the state from localStorage when the app starts
   if (localStorage.getItem('count')) {
     count = parseInt(localStorage.getItem('count'), 10);
   }
-  if (localStorage.getItem('clickerRunning')) {
-    clickerRunning = localStorage.getItem('clickerRunning') === 'true';
+  if (localStorage.getItem('clickerCount')) {
+    clickerCount = parseInt(localStorage.getItem('clickerCount'), 10);
+  }
+  if (localStorage.getItem('clickerCost')) {
+    clickerCost = parseInt(localStorage.getItem('clickerCost'), 10);
   }
 
-  // Function to save the count and clickerRunning state to localStorage
+  // Save state to localStorage
   function saveState() {
     localStorage.setItem('count', count.toString());
-    localStorage.setItem('clickerRunning', clickerRunning.toString());
+    localStorage.setItem('clickerCount', clickerCount.toString());
+    localStorage.setItem('clickerCost', clickerCost.toString());
     console.log('State has been saved to localStorage');
   }
 
-  async function clicker() {
-    while (clickerRunning) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      count += 1;
-      saveState(); // Save the updated state
-    }
+  function startClicker() {
+    const interval = setInterval(() => {
+      count += 1; // Each clicker adds 1 to count per second
+      saveState();
+    }, 1000);
+    clickerIntervals.push(interval);
   }
 
   function buyClicker() {
-    if (count >= 100) {
-      if (!clickerRunning) {
-        clickerRunning = true;
-        saveState(); // Update clickerRunning in localStorage
-        clicker();
-      }
-      count -= 100;
+    if (count >= clickerCost) {
+      count -= clickerCost;
+      clickerCount += 1;
+      clickerCost = Math.floor(clickerCost * 1.5); // Increase the price exponentially
       saveState();
+
+      startClicker(); // Start a new interval for the purchased clicker
     } else {
-      console.log("Not enough points to start the clicker.");
+      console.log("Not enough points to buy a clicker.");
     }
   }
 
-  // Update the count when the button is clicked
   function incrementCount() {
     count += 1;
     saveState();
@@ -48,13 +52,18 @@
 
   function reset() {
     count = 0;
-    clickerRunning = false;
+    clickerCount = 0;
+    clickerCost = 100;
+
+    // Clear all clicker intervals
+    clickerIntervals.forEach(clearInterval);
+    clickerIntervals = [];
     saveState();
   }
 
-  // Start the clicker if clickerRunning is true on page load
-  if (clickerRunning) {
-    clicker();
+  // Restart intervals on page load if clickerCount > 0
+  for (let i = 0; i < clickerCount; i++) {
+    startClicker();
   }
 </script>
 
@@ -65,20 +74,20 @@
   <button class="button" on:click={incrementCount}>Pet Bartholomue ✋🐈</button>
   <p>Bartholomue has been petted {count} times.</p>
   <button class="resetbutton" on:click={reset}>Reset</button>
-  <br>
-  <br>
-  <button on:click={buyClicker} class="button">Add Clicker (100 clicks)</button>
+  <br><br>
+  <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
+  <p>You have {clickerCount} clickers running, each adding one click per second!</p>
 </main>
 
 <style>
   .resetbutton {
     background-color: red;
     color: white;
-    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif; /* Font family */
-    border: none;           /* No border */
-    border-radius: 25px;   /* Rounded corners */
-    padding: 10px 20px;    /* Padding for the button */
-    cursor: pointer;        /* Pointer cursor on hover */
-    transition: background-color 0.3s; /* Smooth background change on hover */
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    border: none;
+    border-radius: 25px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background-color 0.3s;
   }
 </style>
