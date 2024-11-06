@@ -45,6 +45,17 @@
     }
   }
 
+  function buyMultiplier() {
+    if (count >= multiplierCost) {
+      count -= multiplierCost;
+      amountGained *= 2;
+      multiplierCost = Math.floor(multiplierCost * 2); // Increase the price exponentially
+      saveState();
+    } else {
+      console.log("Not enough points to buy a multiplier.");
+    }
+  }
+
   function incrementCount() {
     count += 1;
     saveState();
@@ -77,6 +88,9 @@
   <br><br>
   <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
   <p>You have {clickerCount} clickers running, each adding one click per second!</p>
+  <br>
+  <button on:click={buyMultiplier()} class="button">Add Multiplier ({multiplierCost} clicks)</button>
+  <p>Your count is being multiplied by {amountGained} every click!</p>
 </main>
 
 <style>
