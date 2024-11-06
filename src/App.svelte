@@ -4,6 +4,8 @@
   let clickerCount = 0; // Number of clickers purchased
   let clickerCost = 100; // Initial cost of a clicker
   let clickerIntervals = []; // Array to hold intervals for each clicker
+  let multiplierCost = 200; // Initial cost of multiplier
+  let amountGained = 1; // Initial multiplier effect
 
   // Load the state from localStorage when the app starts
   if (localStorage.getItem('count')) {
@@ -15,18 +17,26 @@
   if (localStorage.getItem('clickerCost')) {
     clickerCost = parseInt(localStorage.getItem('clickerCost'), 10);
   }
+  if (localStorage.getItem('multiplierCost')) {
+    multiplierCost = parseInt(localStorage.getItem('multiplierCost'), 10);
+  }
+  if (localStorage.getItem('amountGained')) {
+    amountGained = parseInt(localStorage.getItem('amountGained'), 10);
+  }
 
   // Save state to localStorage
   function saveState() {
     localStorage.setItem('count', count.toString());
     localStorage.setItem('clickerCount', clickerCount.toString());
     localStorage.setItem('clickerCost', clickerCost.toString());
+    localStorage.setItem('multiplierCost', multiplierCost.toString());
+    localStorage.setItem('amountGained', amountGained.toString());
     console.log('State has been saved to localStorage');
   }
 
   function startClicker() {
     const interval = setInterval(() => {
-      count += 1; // Each clicker adds 1 to count per second
+      count += amountGained; // Each clicker adds 1 to count per second
       saveState();
     }, 1000);
     clickerIntervals.push(interval);
@@ -57,7 +67,7 @@
   }
 
   function incrementCount() {
-    count += 1;
+    count += amountGained;
     saveState();
   }
 
@@ -65,6 +75,8 @@
     count = 0;
     clickerCount = 0;
     clickerCost = 100;
+    multiplierCost = 200;
+    amountGained = 1;
 
     // Clear all clicker intervals
     clickerIntervals.forEach(clearInterval);
@@ -87,9 +99,9 @@
   <button class="resetbutton" on:click={reset}>Reset</button>
   <br><br>
   <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
-  <p>You have {clickerCount} clickers running, each adding one click per second!</p>
+  <p>You have {clickerCount} clickers running, each adding {amountGained} clicks per second!</p>
   <br>
-  <button on:click={buyMultiplier()} class="button">Add Multiplier ({multiplierCost} clicks)</button>
+  <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
   <p>Your count is being multiplied by {amountGained} every click!</p>
 </main>
 
