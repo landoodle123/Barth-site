@@ -36,7 +36,7 @@
 
   function startClicker() {
     const interval = setInterval(() => {
-      count += amountGained; // Each clicker adds 1 to count per second
+      count += 1; // Each clicker adds 1 to count per second
       saveState();
     }, 1000);
     clickerIntervals.push(interval);
@@ -59,7 +59,7 @@
     if (count >= multiplierCost) {
       count -= multiplierCost;
       amountGained *= 2;
-      multiplierCost = Math.floor(multiplierCost * 2); // Increase the price exponentially
+      multiplierCost = Math.floor(multiplierCost * 10); // Increase the price exponentially
       saveState();
     } else {
       console.log("Not enough points to buy a multiplier.");
@@ -99,7 +99,7 @@
   <button class="resetbutton" on:click={reset}>Reset</button>
   <br><br>
   <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
-  <p>You have {clickerCount} clickers running, each adding {amountGained} clicks per second!</p>
+  <p>You have {clickerCount} clickers running, each adding 1 click per second!</p>
   <br>
   <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
   <p>Your count is being multiplied by {amountGained} every click!</p>
