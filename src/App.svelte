@@ -119,7 +119,7 @@
   <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
   <p>Your count is being multiplied by {amountGained} every click!</p>
   <br>
-  <button on:click={buyClickerMultiplier()} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
+  <button on:click={buyClickerMultiplier} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
 </main>
 
 <style>
