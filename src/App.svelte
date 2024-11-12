@@ -8,6 +8,7 @@
   let clickerMultiplierCost = 1000;
   let clickerGain = 1;
   let clickerIntervals = []; // Array to hold intervals for each clicker
+  let confirmReset = false; // Track if reset confirmation is active
 
   // Load the state from localStorage when the app starts
   if (localStorage.getItem('count')) {
@@ -85,18 +86,26 @@
   }
 
   function reset() {
-    count = 0;
-    clickerCount = 0;
-    clickerCost = 100;
-    multiplierCost = 150;
-    clickerMultiplierCost = 1000;
-    clickerGain = 1;
-    amountGained = 1;
+    if (confirmReset) {
+      // Perform the reset
+      count = 0;
+      clickerCount = 0;
+      clickerCost = 100;
+      multiplierCost = 150;
+      clickerMultiplierCost = 1000;
+      clickerGain = 1;
+      amountGained = 1;
 
-    // Clear all clicker intervals
-    clickerIntervals.forEach(clearInterval);
-    clickerIntervals = [];
-    saveState();
+      // Clear all clicker intervals
+      clickerIntervals.forEach(clearInterval);
+      clickerIntervals = [];
+      confirmReset = false; // Reset confirmation status
+      saveState();
+    } else {
+      // Ask for confirmation on first click
+      confirmReset = true;
+      setTimeout(() => confirmReset = false, 3000); // Reset confirmation if no second click within 3 seconds
+    }
   }
 
   // Restart intervals on page load if clickerCount > 0
@@ -111,7 +120,9 @@
   <h2>The best site ever</h2>
   <button class="button" on:click={incrementCount}>Pet Bartholomue ✋🐈</button>
   <p>Bartholomue has been petted {count} times.</p>
-  <button class="resetbutton" on:click={reset}>Reset</button>
+  <button class="resetbutton" on:click={reset}>
+    {confirmReset ? "Are you sure?" : "Reset"}
+  </button>
   <br><br>
   <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
   <p>You have {clickerCount} clickers running, each adding 1 click per second!</p>
