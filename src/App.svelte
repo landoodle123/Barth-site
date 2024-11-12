@@ -1,11 +1,13 @@
 <script>
   import Navbar from './lib/Navbar.svelte';
   let count = 0;
+  let amountGained = 1;
   let clickerCount = 0; // Number of clickers purchased
   let clickerCost = 100; // Initial cost of a clicker
+  let multiplierCost = 150;
+  let clickerMultiplierCost = 1000;
+  let clickerGain = 1;
   let clickerIntervals = []; // Array to hold intervals for each clicker
-  let multiplierCost = 200; // Initial cost of multiplier
-  let amountGained = 1; // Initial multiplier effect
 
   // Load the state from localStorage when the app starts
   if (localStorage.getItem('count')) {
@@ -66,6 +68,17 @@
     }
   }
 
+  function buyClickerMultiplier() {
+    if (count >= clickerMultiplierCost) {
+      count -= clickerMultiplierCost;
+      clickerGain *= 2;
+      clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
+      saveState();
+    } else {
+      console.log("Not enough points to buy a clickermultiplier")
+    }
+  }
+
   function incrementCount() {
     count += amountGained;
     saveState();
@@ -75,8 +88,9 @@
     count = 0;
     clickerCount = 0;
     clickerCost = 100;
-    multiplierCost = 200;
-    amountGained = 1;
+    multiplierCost = 150;
+    clickerMultiplierCost = 1000;
+    clickerGain = 1;
 
     // Clear all clicker intervals
     clickerIntervals.forEach(clearInterval);
@@ -103,6 +117,8 @@
   <br>
   <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
   <p>Your count is being multiplied by {amountGained} every click!</p>
+  <br>
+  <button on:click={buyClickerMultiplier()} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
 </main>
 
 <style>
