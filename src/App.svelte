@@ -38,7 +38,7 @@
 
   function startClicker() {
     const interval = setInterval(() => {
-      count += 1; // Each clicker adds 1 to count per second
+      count += clickerGain; // Each clicker adds 1 to count per second
       saveState();
     }, 1000);
     clickerIntervals.push(interval);
