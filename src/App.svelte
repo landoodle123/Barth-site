@@ -91,6 +91,7 @@
     multiplierCost = 150;
     clickerMultiplierCost = 1000;
     clickerGain = 1;
+    amountGained = 1;
 
     // Clear all clicker intervals
     clickerIntervals.forEach(clearInterval);
