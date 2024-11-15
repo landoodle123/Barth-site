@@ -12,13 +12,13 @@
   let confirmReset = false;
 
   // Load state from localStorage
-  if (localStorage.getItem('count')) count = parseInt(localStorage.getItem('count'), 10);
-  if (localStorage.getItem('clickerCount')) clickerCount = parseInt(localStorage.getItem('clickerCount'), 10);
-  if (localStorage.getItem('clickerCost')) clickerCost = parseInt(localStorage.getItem('clickerCost'), 10);
-  if (localStorage.getItem('multiplierCost')) multiplierCost = parseInt(localStorage.getItem('multiplierCost'), 10);
-  if (localStorage.getItem('clickerMultiplierCost')) clickerMultiplierCost = parseInt(localStorage.getItem('clickerMultiplierCost'), 10);
-  if (localStorage.getItem('amountGained')) amountGained = parseInt(localStorage.getItem('amountGained'), 10);
-  if (localStorage.getItem('clickerGain')) clickerGain = parseInt(localStorage.getItem('clickerGain'), 10);
+  count = parseInt(localStorage.getItem('count') || "0", 10);
+  clickerCount = parseInt(localStorage.getItem('clickerCount') || "0", 10);
+  clickerCost = parseInt(localStorage.getItem('clickerCost') || "100", 10);
+  multiplierCost = parseInt(localStorage.getItem('multiplierCost') || "150", 10);
+  clickerMultiplierCost = parseInt(localStorage.getItem('clickerMultiplierCost') || "1000", 10);
+  amountGained = parseInt(localStorage.getItem('amountGained') || "1", 10);
+  clickerGain = parseInt(localStorage.getItem('clickerGain') || "1", 10);
 
   // Save state to localStorage
   function saveState() {
@@ -29,7 +29,7 @@
     localStorage.setItem('clickerMultiplierCost', clickerMultiplierCost.toString());
     localStorage.setItem('amountGained', amountGained.toString());
     localStorage.setItem('clickerGain', clickerGain.toString());
-    console.log('State saved to localStorage');
+    console.log('State saved:', { count, clickerCount, clickerCost, multiplierCost, clickerMultiplierCost, amountGained, clickerGain });
   }
 
   function startClicker() {
@@ -98,7 +98,9 @@
     }
   }
 
-  // Restart intervals on page load
+  // Clear and restart intervals on page load
+  clickerIntervals.forEach(clearInterval);
+  clickerIntervals = [];
   for (let i = 0; i < clickerCount; i++) {
     startClicker();
   }
