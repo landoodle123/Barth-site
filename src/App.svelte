@@ -1,5 +1,6 @@
 <script>
   import Navbar from './lib/Navbar.svelte';
+
   let count = 0;
   let amountGained = 1;
   let clickerCount = 0;
@@ -8,24 +9,16 @@
   let clickerMultiplierCost = 1000;
   let clickerGain = 1;
   let clickerIntervals = [];
-  let resetClicks = 0; // Tracks the reset button clicks
+  let confirmReset = false;
 
-  // Load the state from localStorage when the app starts
-  if (localStorage.getItem('count')) {
-    count = parseInt(localStorage.getItem('count'), 10);
-  }
-  if (localStorage.getItem('clickerCount')) {
-    clickerCount = parseInt(localStorage.getItem('clickerCount'), 10);
-  }
-  if (localStorage.getItem('clickerCost')) {
-    clickerCost = parseInt(localStorage.getItem('clickerCost'), 10);
-  }
-  if (localStorage.getItem('multiplierCost')) {
-    multiplierCost = parseInt(localStorage.getItem('multiplierCost'), 10);
-  }
-  if (localStorage.getItem('clickerGain')) {
-    clickerGain = parseInt(localStorage.getItem('clickerGain'), 10);
-  }
+  // Load state from localStorage
+  if (localStorage.getItem('count')) count = parseInt(localStorage.getItem('count'), 10);
+  if (localStorage.getItem('clickerCount')) clickerCount = parseInt(localStorage.getItem('clickerCount'), 10);
+  if (localStorage.getItem('clickerCost')) clickerCost = parseInt(localStorage.getItem('clickerCost'), 10);
+  if (localStorage.getItem('multiplierCost')) multiplierCost = parseInt(localStorage.getItem('multiplierCost'), 10);
+  if (localStorage.getItem('clickerMultiplierCost')) clickerMultiplierCost = parseInt(localStorage.getItem('clickerMultiplierCost'), 10);
+  if (localStorage.getItem('amountGained')) amountGained = parseInt(localStorage.getItem('amountGained'), 10);
+  if (localStorage.getItem('clickerGain')) clickerGain = parseInt(localStorage.getItem('clickerGain'), 10);
 
   // Save state to localStorage
   function saveState() {
@@ -33,8 +26,10 @@
     localStorage.setItem('clickerCount', clickerCount.toString());
     localStorage.setItem('clickerCost', clickerCost.toString());
     localStorage.setItem('multiplierCost', multiplierCost.toString());
+    localStorage.setItem('clickerMultiplierCost', clickerMultiplierCost.toString());
+    localStorage.setItem('amountGained', amountGained.toString());
     localStorage.setItem('clickerGain', clickerGain.toString());
-    console.log('State has been saved to localStorage');
+    console.log('State saved to localStorage');
   }
 
   function startClicker() {
@@ -51,7 +46,6 @@
       clickerCount += 1;
       clickerCost = Math.floor(clickerCost * 1.5);
       saveState();
-
       startClicker();
     } else {
       console.log("Not enough points to buy a clicker.");
@@ -76,7 +70,7 @@
       clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
       saveState();
     } else {
-      console.log("Not enough points to buy a clickermultiplier");
+      console.log("Not enough points to buy a clicker multiplier.");
     }
   }
 
@@ -86,8 +80,7 @@
   }
 
   function reset() {
-    resetClicks++;
-    if (resetClicks >= 2) {
+    if (confirmReset) {
       count = 0;
       clickerCount = 0;
       clickerCost = 100;
@@ -95,48 +88,18 @@
       clickerMultiplierCost = 1000;
       clickerGain = 1;
       amountGained = 1;
-      resetClicks = 0;
-
       clickerIntervals.forEach(clearInterval);
       clickerIntervals = [];
+      confirmReset = false;
       saveState();
     } else {
-      console.log("Click reset button again to confirm.");
+      confirmReset = true;
+      setTimeout(() => (confirmReset = false), 3000); // Reset confirmation after 3 seconds
     }
   }
 
-  // Restart intervals on page load if clickerCount > 0
+  // Restart intervals on page load
   for (let i = 0; i < clickerCount; i++) {
     startClicker();
   }
 </script>
-
-<main>
-  <Navbar />
-  <h1>Welcome to the Great Realm of Bartholomue!</h1>
-  <h2>The best site ever</h2>
-  <button class="button" on:click={incrementCount}>Pet Bartholomue ✋🐈</button>
-  <p>Bartholomue has been petted {count} times.</p>
-  <button class="resetbutton" on:click={reset}>Reset</button>
-  <br><br>
-  <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
-  <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks per second!</p>
-  <br>
-  <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
-  <p>Your count is being multiplied by {amountGained} every click!</p>
-  <br>
-  <button on:click={buyClickerMultiplier} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
-</main>
-
-<style>
-  .resetbutton {
-    background-color: red;
-    color: white;
-    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-    border: none;
-    border-radius: 25px;
-    padding: 10px 20px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
-</style>
