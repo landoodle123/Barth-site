@@ -105,3 +105,35 @@
     startClicker();
   }
 </script>
+
+<main>
+  <Navbar />
+  <h1>Welcome to the Great Realm of Bartholomue!</h1>
+  <h2>The best site ever</h2>
+  <button class="button" on:click={incrementCount}>Pet Bartholomue ✋🐈</button>
+  <p>Bartholomue has been petted {count} times.</p>
+  <button class="resetbutton" on:click={reset}>
+    {confirmReset ? "Are you sure?" : "Reset"}
+  </button>
+  <br><br>
+  <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
+  <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks per second!</p>
+  <br>
+  <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
+  <p>Your count is being multiplied by {amountGained} every click!</p>
+  <br>
+  <button on:click={buyClickerMultiplier} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
+</main>
+
+<style>
+  .resetbutton {
+    background-color: red;
+    color: white;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    border: none;
+    border-radius: 25px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+</style>
