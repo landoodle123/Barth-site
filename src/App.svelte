@@ -123,6 +123,10 @@
   <p>Your count is being multiplied by {amountGained} every click!</p>
   <br>
   <button on:click={buyClickerMultiplier} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
+  <h2>Photo Gallery</h2>
+  <img src="bartholomue.png" alt="bartholomue the great">
+  <img src="bartholomue.png" alt="bartholomue is life">
+  <p>bartholomue</p>
 </main>
 
 <style>
