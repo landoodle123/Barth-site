@@ -24,6 +24,7 @@ body {
 
 img {
   max-width: 100%; /* Ensure image is responsive */
+  size: 150px;
   height: auto; /* Maintain aspect ratio */
 }
 
@@ -76,5 +77,5 @@ img {
 }
 
 main {
-  padding-top: 60px; /* Prevents content from being hidden behind the navbar */
+  padding-top: 70px; /* Prevents content from being hidden behind the navbar */
 }
