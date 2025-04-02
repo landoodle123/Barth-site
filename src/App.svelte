@@ -1,6 +1,7 @@
 <script>
   import Navbar from './lib/Navbar.svelte';
 
+  // declaring vars
   let count = 0;
   let amountGained = 1;
   let clickerCount = 0;
@@ -32,6 +33,7 @@
     console.log('State saved:', { count, clickerCount, clickerCost, multiplierCost, clickerMultiplierCost, amountGained, clickerGain });
   }
 
+  // start running a clicker
   function startClicker() {
     const interval = setInterval(() => {
       count += clickerGain;
@@ -40,6 +42,7 @@
     clickerIntervals.push(interval);
   }
 
+  // buying a clicker
   function buyClicker() {
     if (count >= clickerCost) {
       count -= clickerCost;
@@ -52,6 +55,7 @@
     }
   }
 
+  // buying a multiplier
   function buyMultiplier() {
     if (count >= multiplierCost) {
       count -= multiplierCost;
@@ -63,6 +67,7 @@
     }
   }
 
+  // buying a clickermultiplier
   function buyClickerMultiplier() {
     if (count >= clickerMultiplierCost) {
       count -= clickerMultiplierCost;
@@ -74,6 +79,7 @@
     }
   }
 
+  // increment count
   function incrementCount() {
     count += amountGained;
     saveState();
@@ -132,6 +138,7 @@
 </main>
 
 <style>
+  /* Styles can be found in src/app.css */
   .resetbutton {
     background-color: red;
     color: white;
