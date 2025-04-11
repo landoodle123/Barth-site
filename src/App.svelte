@@ -97,7 +97,19 @@
       setTimeout(() => (confirmReset = false), 3000); // Reset confirmation after 3 seconds
     }
   }
-
+  function quickReset() {
+    count = 0;
+      clickerCount = 0;
+      clickerCost = 100;
+      multiplierCost = 150;
+      clickerMultiplierCost = 1000;
+      clickerGain = 1;
+      amountGained = 1;
+      clickerIntervals.forEach(clearInterval);
+      clickerIntervals = [];
+      confirmReset = false;
+      saveState();
+  }
   // Clear and restart intervals on page load
   clickerIntervals.forEach(clearInterval);
   clickerIntervals = [];
@@ -110,7 +122,7 @@
   <Navbar />
   <h1>Welcome to the Great Realm of Bartholomue!</h1>
   <h2>The best site ever</h2>
-  <button class="button" on:click={incrementCount}>Pet Bartholomue ✋🐈</button>
+  <button class="button" on:click={incrementCount} on:keydown={quickReset}>Pet Bartholomue ✋🐈</button>
   <p>Bartholomue has been petted {count} times.</p>
   <button class="resetbutton" on:click={reset}>
     {confirmReset ? "Are you sure?" : "Reset"}
@@ -120,7 +132,7 @@
   <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks per second!</p>
   <br>
   <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
-  <p>Your count is being multiplied by {amountGained} every click!</p>
+  <p>Each click is being multiplied by {amountGained} every click!</p>
   <br>
   <button on:click={buyClickerMultiplier} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
   <div class="photogallery">
