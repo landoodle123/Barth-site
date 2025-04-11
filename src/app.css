@@ -49,7 +49,7 @@ img {
   padding: 10px 20px;
   background-size: cover;
   background-position: center;
-  height: 60px;
+  height: 10%;
   color: black;
   position: fixed;
   top: 0;
@@ -60,9 +60,10 @@ img {
 }
 
 .navbar-text {
-  font-size: 48px;
+  font-size: 10%;
   font-weight: bold;
   font-style: italic;
+  white-space: nowrap;
 }
 
 .navbar-links {
