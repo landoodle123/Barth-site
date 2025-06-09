@@ -11,7 +11,11 @@
   let clickerIntervals = [];
   let confirmReset = false;
 
-  // Load state from localStorage
+  let clickTimestamps = [];
+  const AUTODETECT_WINDOW = 15;
+  const MIN_INTERVAL_MS = 40;
+  const MAX_VARIANCE_MS = 10;
+
   count = parseInt(localStorage.getItem('count') || "0", 10);
   clickerCount = parseInt(localStorage.getItem('clickerCount') || "0", 10);
   clickerCost = parseInt(localStorage.getItem('clickerCost') || "100", 10);
@@ -20,7 +24,6 @@
   amountGained = parseInt(localStorage.getItem('amountGained') || "1", 10);
   clickerGain = parseInt(localStorage.getItem('clickerGain') || "1", 10);
 
-  // Save state to localStorage
   function saveState() {
     localStorage.setItem('count', count.toString());
     localStorage.setItem('clickerCount', clickerCount.toString());
@@ -74,7 +77,29 @@
     }
   }
 
+  function detectAutoclicker() {
+    if (clickTimestamps.length < AUTODETECT_WINDOW) return false;
+    let intervals = [];
+    for (let i = 1; i < clickTimestamps.length; i++) {
+      intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
+    }
+    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const variance = intervals.reduce((a, b) => a + Math.abs(b - avg), 0) / intervals.length;
+    return avg < MIN_INTERVAL_MS && variance < MAX_VARIANCE_MS;
+  }
+
   function incrementCount() {
+    const now = Date.now();
+    clickTimestamps.push(now);
+    if (clickTimestamps.length > AUTODETECT_WINDOW) {
+      clickTimestamps.shift();
+    }
+    if (detectAutoclicker()) {
+      alert("Autoclicker detected! Progress reset.");
+      quickReset();
+      clickTimestamps = [];
+      return;
+    }
     count += amountGained;
     saveState();
   }
@@ -94,7 +119,7 @@
       saveState();
     } else {
       confirmReset = true;
-      setTimeout(() => (confirmReset = false), 3000); // Reset confirmation after 3 seconds
+      setTimeout(() => (confirmReset = false), 3000);
     }
   }
 
@@ -114,13 +139,15 @@
 
   function handleKeydown(e) {
     if (e.key === "Enter") {
+      alert("Enter key pressed! Progress reset.");
+      e.preventDefault();
+      e.stopPropagation();
       quickReset();
     } else {
       console.log("Key pressed:", e.key);
     }
   }
 
-  // Clear and restart intervals on page load
   clickerIntervals.forEach(clearInterval);
   clickerIntervals = [];
   for (let i = 0; i < clickerCount; i++) {
