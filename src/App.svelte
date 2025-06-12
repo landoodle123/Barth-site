@@ -138,13 +138,7 @@
   }
 
   function handleKeydown(e) {
-    if (e.key === "Enter") {
-      alert("Enter key pressed! Progress reset.");
-      e.preventDefault();
-      e.stopPropagation();
-      quickReset();
-    } else {
-      console.log("Key pressed:", e.key);
+   
     }
   }
 
