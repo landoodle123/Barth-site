@@ -1,5 +1,4 @@
 <script>
-  import Navbar from './Navbar.svelte';
   import { onMount, onDestroy } from 'svelte';
 
   let count = 0;
@@ -11,22 +10,12 @@
   let clickerGain = 1;
   let clickerIntervals = [];
   let confirmReset = false;
+  let loaded = false;
 
   let clickTimestamps = [];
   const AUTODETECT_WINDOW = 15;
   const MIN_INTERVAL_MS = 40;
   const MAX_VARIANCE_MS = 10;
-
-  // Only access localStorage in browser
-  if (typeof window !== 'undefined') {
-    count = parseInt(localStorage.getItem('count') || "0", 10) || 0;
-    clickerCount = parseInt(localStorage.getItem('clickerCount') || "0", 10) || 0;
-    clickerCost = parseInt(localStorage.getItem('clickerCost') || "100", 10) || 100;
-    multiplierCost = parseInt(localStorage.getItem('multiplierCost') || "150", 10) || 150;
-    clickerMultiplierCost = parseInt(localStorage.getItem('clickerMultiplierCost') || "1000", 10) || 1000;
-    amountGained = parseInt(localStorage.getItem('amountGained') || "1", 10) || 1;
-    clickerGain = parseInt(localStorage.getItem('clickerGain') || "1", 10) || 1;
-  }
 
   function saveState() {
     if (typeof window !== 'undefined') {
@@ -37,49 +26,51 @@
       localStorage.setItem('clickerMultiplierCost', clickerMultiplierCost.toString());
       localStorage.setItem('amountGained', amountGained.toString());
       localStorage.setItem('clickerGain', clickerGain.toString());
-      console.log('State saved:', { count, clickerCount, clickerCost, multiplierCost, clickerMultiplierCost, amountGained, clickerGain });
     }
   }
 
-  function startClicker() {
-    const interval = setInterval(() => {
-      count += clickerGain;
-      saveState();
-    }, 1000);
-    clickerIntervals.push(interval);
+  function clearAllClickers() {
+    clickerIntervals.forEach(clearInterval);
+    clickerIntervals = [];
+  }
+
+  function startAllClickers() {
+    clearAllClickers();
+    for (let i = 0; i < clickerCount; i++) {
+      const interval = setInterval(() => {
+        count = count + clickerGain;
+        saveState();
+      }, 1000);
+      clickerIntervals.push(interval);
+    }
   }
 
   function buyClicker() {
     if (count >= clickerCost) {
-      count -= clickerCost;
-      clickerCount += 1;
+      count = count - clickerCost;
+      clickerCount = clickerCount + 1;
       clickerCost = Math.floor(clickerCost * 1.5);
       saveState();
-      startClicker();
-    } else {
-      console.log("Not enough points to buy a clicker.");
+      startAllClickers();
     }
   }
 
   function buyMultiplier() {
     if (count >= multiplierCost) {
-      count -= multiplierCost;
-      amountGained *= 2;
+      count = count - multiplierCost;
+      amountGained = amountGained * 2;
       multiplierCost = Math.floor(multiplierCost * 2);
       saveState();
-    } else {
-      console.log("Not enough points to buy a multiplier.");
     }
   }
 
   function buyClickerMultiplier() {
     if (count >= clickerMultiplierCost) {
-      count -= clickerMultiplierCost;
-      clickerGain *= 2;
+      count = count - clickerMultiplierCost;
+      clickerGain = clickerGain * 2;
       clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
       saveState();
-    } else {
-      console.log("Not enough points to buy a clicker multiplier.");
+      startAllClickers(); // Restart clickers with new gain
     }
   }
 
@@ -96,9 +87,9 @@
 
   function incrementCount() {
     const now = Date.now();
-    clickTimestamps.push(now);
+    clickTimestamps = [...clickTimestamps, now];
     if (clickTimestamps.length > AUTODETECT_WINDOW) {
-      clickTimestamps.shift();
+      clickTimestamps = clickTimestamps.slice(-AUTODETECT_WINDOW);
     }
     if (detectAutoclicker()) {
       alert("Autoclicker detected! Progress reset.");
@@ -106,7 +97,7 @@
       clickTimestamps = [];
       return;
     }
-    count += amountGained;
+    count = count + amountGained;
     saveState();
   }
 
@@ -119,10 +110,10 @@
       clickerMultiplierCost = 1000;
       clickerGain = 1;
       amountGained = 1;
-      clickerIntervals.forEach(clearInterval);
-      clickerIntervals = [];
+      clearAllClickers();
       confirmReset = false;
       saveState();
+      startAllClickers();
     } else {
       confirmReset = true;
       setTimeout(() => (confirmReset = false), 3000);
@@ -137,10 +128,10 @@
     clickerMultiplierCost = 1000;
     clickerGain = 1;
     amountGained = 1;
-    clickerIntervals.forEach(clearInterval);
-    clickerIntervals = [];
+    clearAllClickers();
     confirmReset = false;
     saveState();
+    startAllClickers();
   }
 
   function handleKeydown(e) {
@@ -149,26 +140,30 @@
       e.preventDefault();
       e.stopPropagation();
       quickReset();
-    } else {
-      console.log("Key pressed:", e.key);
     }
   }
 
-  // Interval management using Svelte lifecycle
+  // Load state from localStorage only in the browser
   onMount(() => {
-    clickerIntervals.forEach(clearInterval);
-    clickerIntervals = [];
-    for (let i = 0; i < clickerCount; i++) {
-      startClicker();
+    if (typeof window !== 'undefined') {
+      count = parseInt(localStorage.getItem('count') || "0", 10) || 0;
+      clickerCount = parseInt(localStorage.getItem('clickerCount') || "0", 10) || 0;
+      clickerCost = parseInt(localStorage.getItem('clickerCost') || "100", 10) || 100;
+      multiplierCost = parseInt(localStorage.getItem('multiplierCost') || "150", 10) || 150;
+      clickerMultiplierCost = parseInt(localStorage.getItem('clickerMultiplierCost') || "1000", 10) || 1000;
+      amountGained = parseInt(localStorage.getItem('amountGained') || "1", 10) || 1;
+      clickerGain = parseInt(localStorage.getItem('clickerGain') || "1", 10) || 1;
+      startAllClickers();
+      loaded = true;
     }
   });
 
   onDestroy(() => {
-    clickerIntervals.forEach(clearInterval);
-    clickerIntervals = [];
+    clearAllClickers();
   });
 </script>
 
+{#if loaded}
 <main>
   <h1>Welcome to the Great Realm of Bartholomue!</h1>
   <h2>The best site ever</h2>
@@ -192,6 +187,14 @@
     <p>bartholomue</p>
   </div>
 </main>
+{:else}
+<main>
+  <div class="spinner-container">
+    <div class="spinner"></div>
+    <h2>Loading...</h2>
+  </div>
+</main>
+{/if}
 
 <style>
   .resetbutton {
@@ -211,4 +214,25 @@
     margin-left: auto;
     margin-right: auto;
   }
+  .spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 6px solid #e0e0e0;
+  border-top: 6px solid #0078d7; /* Windows 10 blue */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 </style>
