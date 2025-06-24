@@ -23,6 +23,7 @@
     },
     "dependencies": {
         "@prisma/client": "^6.10.1",
+        "@sveltejs/adapter-vercel": "^5.7.2",
         "bcryptjs": "^3.0.2",
         "prisma": "^6.10.1"
     }
