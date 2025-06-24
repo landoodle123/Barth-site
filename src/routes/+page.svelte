@@ -1,5 +1,3 @@
-// Welcome to the Great Realm of Bartholomue!
-// This is a simple clicker game built with Svelte.
 <script>
   import { onMount, onDestroy } from 'svelte';
 
