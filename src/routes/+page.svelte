@@ -11,22 +11,41 @@
   let clickerIntervals = [];
   let confirmReset = false;
   let loaded = false;
+  let saveInterval;
 
   let clickTimestamps = [];
   const AUTODETECT_WINDOW = 15;
   const MIN_INTERVAL_MS = 40;
   const MAX_VARIANCE_MS = 10;
 
-  function saveState() {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('count', count.toString());
-      localStorage.setItem('clickerCount', clickerCount.toString());
-      localStorage.setItem('clickerCost', clickerCost.toString());
-      localStorage.setItem('multiplierCost', multiplierCost.toString());
-      localStorage.setItem('clickerMultiplierCost', clickerMultiplierCost.toString());
-      localStorage.setItem('amountGained', amountGained.toString());
-      localStorage.setItem('clickerGain', clickerGain.toString());
+  async function fetchState() {
+    const res = await fetch('/api/game-state');
+    if (res.ok) {
+      const data = await res.json();
+      count = data.count ?? 0;
+      amountGained = data.amountGained ?? 1;
+      clickerCount = data.clickerCount ?? 0;
+      clickerCost = data.clickerCost ?? 100;
+      multiplierCost = data.multiplierCost ?? 150;
+      clickerMultiplierCost = data.clickerMultiplierCost ?? 1000;
+      clickerGain = data.clickerGain ?? 1;
     }
+  }
+
+  async function saveState() {
+    await fetch('/api/game-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        count,
+        amountGained,
+        clickerCount,
+        clickerCost,
+        multiplierCost,
+        clickerMultiplierCost,
+        clickerGain
+      })
+    });
   }
 
   function clearAllClickers() {
@@ -39,7 +58,6 @@
     for (let i = 0; i < clickerCount; i++) {
       const interval = setInterval(() => {
         count = count + clickerGain;
-        saveState();
       }, 1000);
       clickerIntervals.push(interval);
     }
@@ -50,7 +68,6 @@
       count = count - clickerCost;
       clickerCount = clickerCount + 1;
       clickerCost = Math.floor(clickerCost * 1.5);
-      saveState();
       startAllClickers();
     }
   }
@@ -60,7 +77,6 @@
       count = count - multiplierCost;
       amountGained = amountGained * 2;
       multiplierCost = Math.floor(multiplierCost * 2);
-      saveState();
     }
   }
 
@@ -69,8 +85,7 @@
       count = count - clickerMultiplierCost;
       clickerGain = clickerGain * 2;
       clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
-      saveState();
-      startAllClickers(); // Restart clickers with new gain
+      startAllClickers();
     }
   }
 
@@ -98,7 +113,6 @@
       return;
     }
     count = count + amountGained;
-    saveState();
   }
 
   function reset() {
@@ -112,8 +126,8 @@
       amountGained = 1;
       clearAllClickers();
       confirmReset = false;
-      saveState();
       startAllClickers();
+      saveState();
     } else {
       confirmReset = true;
       setTimeout(() => (confirmReset = false), 3000);
@@ -130,8 +144,8 @@
     amountGained = 1;
     clearAllClickers();
     confirmReset = false;
-    saveState();
     startAllClickers();
+    saveState();
   }
 
   function handleKeydown(e) {
@@ -143,23 +157,16 @@
     }
   }
 
-  // Load state from localStorage only in the browser
-  onMount(() => {
-    if (typeof window !== 'undefined') {
-      count = parseInt(localStorage.getItem('count') || "0", 10) || 0;
-      clickerCount = parseInt(localStorage.getItem('clickerCount') || "0", 10) || 0;
-      clickerCost = parseInt(localStorage.getItem('clickerCost') || "100", 10) || 100;
-      multiplierCost = parseInt(localStorage.getItem('multiplierCost') || "150", 10) || 150;
-      clickerMultiplierCost = parseInt(localStorage.getItem('clickerMultiplierCost') || "1000", 10) || 1000;
-      amountGained = parseInt(localStorage.getItem('amountGained') || "1", 10) || 1;
-      clickerGain = parseInt(localStorage.getItem('clickerGain') || "1", 10) || 1;
-      startAllClickers();
-      loaded = true;
-    }
+  onMount(async () => {
+    await fetchState();
+    startAllClickers();
+    loaded = true;
+    saveInterval = setInterval(saveState, 60000); // Save every minute
   });
 
   onDestroy(() => {
     clearAllClickers();
+    if (saveInterval) clearInterval(saveInterval);
   });
 </script>
 
@@ -172,6 +179,7 @@
   <button class="resetbutton" on:click={reset}>
     {confirmReset ? "Are you sure?" : "Reset"}
   </button>
+  <button class="button" on:click={saveState}>Update</button>
   <br><br>
   <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
   <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks per second!</p>
@@ -215,24 +223,22 @@
     margin-right: auto;
   }
   .spinner-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 40vh;
-}
-
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 6px solid #e0e0e0;
-  border-top: 6px solid #0078d7; /* Windows 10 blue */
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 40vh;
+  }
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 6px solid #e0e0e0;
+    border-top: 6px solid #0078d7; /* Windows 10 blue */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
 </style>

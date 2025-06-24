@@ -1,10 +1,11 @@
 <script>
     import Navbar from './Navbar.svelte';
     import '../app.css';
+    export let data;
 </script>
 
 <div class="app">
-    <Navbar />
+    <Navbar loggedIn={data.loggedIn} />
     <main>
         <slot />
     </main>
