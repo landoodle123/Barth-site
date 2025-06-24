@@ -5,3 +5,4 @@ export async function POST({ cookies }) {
   });
   return new Response(null, { status: 204 });
 }
+export const prerender = false;
