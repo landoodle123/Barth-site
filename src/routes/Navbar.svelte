@@ -10,6 +10,7 @@
     <a href="/">GREAT REALM OF BARTHOLOMUE</a>
   </div>
   <div class="navbar-links">
+    <a href="/leaderboard">Leaderboard</a>
     {#if loggedIn}
       <button type="button" on:click={logout}>Log out</button>
     {:else}

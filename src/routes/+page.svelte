@@ -190,8 +190,8 @@
   <button on:click={buyClickerMultiplier} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
   <div class="photogallery">
     <h2>Photo Gallery</h2>
-    <img src="./lib/images/bartholomue.png" alt="bartholomue the great">
-    <img src="./lib/images/bartholomue.png" alt="bartholomue is life">
+    <img src="/lib/images/bartholomue.png" alt="bartholomue the great">
+    <img src="/lib/images/bartholomue.png" alt="bartholomue is life">
     <p>bartholomue</p>
   </div>
 </main>
