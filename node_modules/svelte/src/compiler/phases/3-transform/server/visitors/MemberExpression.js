@@ -1,6 +1,6 @@
-/** @import { MemberExpression } from 'estree' */
+/** @import { ClassBody, MemberExpression } from 'estree' */
 /** @import { Context } from '../types.js' */
-import * as b from '../../../../utils/builders.js';
+import * as b from '#compiler/builders';
 
 /**
  * @param {MemberExpression} node
@@ -12,9 +12,9 @@ export function MemberExpression(node, context) {
 		node.object.type === 'ThisExpression' &&
 		node.property.type === 'PrivateIdentifier'
 	) {
-		const field = context.state.private_derived.get(node.property.name);
+		const field = context.state.state_fields?.get(`#${node.property.name}`);
 
-		if (field) {
+		if (field?.type === '$derived' || field?.type === '$derived.by') {
 			return b.call(node);
 		}
 	}

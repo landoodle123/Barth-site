@@ -1,7 +1,13 @@
-import { vitePreprocess } from '@sveltejs/vite-plugin-svelte'
+import adapter from '@sveltejs/adapter-vercel';
+// test
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+    kit: {
+        adapter: adapter(),
+        prerender: {
+            entries: [] // disables all prerendering to fix 405 build errors on dynamic routes
+        }
+    }
+};
 
-export default {
-  // Consult https://svelte.dev/docs#compile-time-svelte-preprocess
-  // for more information about preprocessors
-  preprocess: vitePreprocess(),
-}
+export default config;
