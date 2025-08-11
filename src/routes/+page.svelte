@@ -15,8 +15,8 @@
 
   let clickTimestamps = [];
   const AUTODETECT_WINDOW = 15;
-  const MIN_INTERVAL_MS = 40;
-  const MAX_VARIANCE_MS = 10;
+  const MIN_INTERVAL_MS = 90;
+  const MAX_VARIANCE_MS = 5;
 
   async function fetchState() {
     const res = await fetch('/api/game-state');
