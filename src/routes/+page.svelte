@@ -67,7 +67,7 @@
     if (count >= clickerCost) {
       count = count - clickerCost;
       clickerCount = clickerCount + 1;
-      clickerCost = Math.floor(clickerCost * 1.5);
+      clickerCost = Math.floor(clickerCost * 2.5);
       startAllClickers();
     }
   }
@@ -76,7 +76,7 @@
     if (count >= multiplierCost) {
       count = count - multiplierCost;
       amountGained = amountGained * 2;
-      multiplierCost = Math.floor(multiplierCost * 2);
+      multiplierCost = Math.floor(multiplierCost * 3);
     }
   }
 
