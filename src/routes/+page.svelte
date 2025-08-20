@@ -13,6 +13,10 @@
   let loaded = false;
   let saveInterval;
 
+  let saveMessage = '';
+  let saveMessageType = '';
+  let saveMessageTimeout;
+
   let clickTimestamps = [];
   const AUTODETECT_WINDOW = 15;
   const MIN_INTERVAL_MS = 90;
@@ -33,19 +37,38 @@
   }
 
   async function saveState() {
-    await fetch('/api/game-state', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        count,
-        amountGained,
-        clickerCount,
-        clickerCost,
-        multiplierCost,
-        clickerMultiplierCost,
-        clickerGain
-      })
-    });
+    try {
+      const res = await fetch('/api/game-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          count,
+          amountGained,
+          clickerCount,
+          clickerCost,
+          multiplierCost,
+          clickerMultiplierCost,
+          clickerGain
+        })
+      });
+      if (res.ok) {
+        showSaveMessage(`Saved at ${new Date().toLocaleTimeString()} successfully`, 'success');
+      } else {
+        showSaveMessage('Save failed! E: Server error', 'error');
+      }
+    } catch (e) {
+      showSaveMessage('Save failed! E: Disconnected from network', 'error');
+    }
+  }
+
+  function showSaveMessage(message, type) {
+    saveMessage = message;
+    saveMessageType = type;
+    clearTimeout(saveMessageTimeout);
+    saveMessageTimeout = setTimeout(() => {
+      saveMessage = '';
+      saveMessageType = '';
+    }, 3000);
   }
 
   function clearAllClickers() {
@@ -170,6 +193,12 @@
   });
 </script>
 
+{#if saveMessage}
+  <div class="save-popup {saveMessageType}">
+    {saveMessage}
+  </div>
+{/if}
+
 {#if loaded}
 <main>
   <h1>Welcome to the Great Realm of Bartholomue!</h1>
@@ -221,6 +250,29 @@
     display: block;
     margin-left: auto;
     margin-right: auto;
+  }
+  .save-popup {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1.1em;
+    z-index: 1000;
+    background: #222;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    opacity: 0.95;
+    transition: opacity 0.3s;
+  }
+  .save-popup.success {
+    background: #2e7d32;
+    color: #fff;
+  }
+  .save-popup.error {
+    background: #c62828;
+    color: #fff;
   }
   .spinner-container {
     display: flex;
