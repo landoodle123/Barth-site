@@ -173,7 +173,7 @@
 
   function handleKeydown(e) {
     if (e.key === "Enter") {
-      alert("Enter key pressed! Progress reset.");
+      alert("Enter key pressed! Progress reset. The enter key can be used to cheat significant amounts of points rapidly, thus pressing it can reset your progress.");
       e.preventDefault();
       e.stopPropagation();
       quickReset();
@@ -205,6 +205,7 @@
   <h2>The best site ever</h2>
   <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>Pet Bartholomue ✋🐈</button>
   <p>Bartholomue has been petted {count} times.</p>
+  <p>Warning, pressing "enter" with the site focused *will* reset your progress.</p>
   <button class="resetbutton" on:click={reset}>
     {confirmReset ? "Are you sure?" : "Reset"}
   </button>
