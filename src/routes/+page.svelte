@@ -221,8 +221,9 @@
   <div class="photogallery">
     <h2>Photo Gallery</h2>
     <img src="/lib/images/bartholomue.png" alt="bartholomue the great">
-    <img src="/lib/images/bartholomue.png" alt="bartholomue is life">
-    <p>bartholomue</p>
+    <img src="/lib/images/imAllEars.jpg" alt="i'm all ears looking ahh cat">
+    <img src="/lib/images/catThatProbWantsFood.jpg" alt="cat that definitely wants food">
+    <p>cat</p>
   </div>
 </main>
 {:else}
