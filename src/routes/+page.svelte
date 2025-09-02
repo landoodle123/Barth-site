@@ -215,7 +215,7 @@
   <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks per second!</p>
   <br>
   <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
-  <p>Each click is being multiplied by {amountGained} every click!</p>
+  <p>Each click is being multiplied by {amountGained}!</p>
   <br>
   <button on:click={buyClickerMultiplier} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
   <div class="photogallery">
