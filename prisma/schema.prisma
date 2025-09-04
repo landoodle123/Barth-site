@@ -17,13 +17,13 @@ model User {
 
 model GameState {
   userId                String   @id
-  count                 Int      @default(0)
-  amountGained          Int      @default(1)
-  clickerCount          Int      @default(0)
-  clickerCost           Int      @default(100)
-  multiplierCost        Int      @default(150)
-  clickerMultiplierCost Int      @default(1000)
-  clickerGain           Int      @default(1)
+  count                 BigInt      @default(0)
+  amountGained          BigInt      @default(1)
+  clickerCount          BigInt      @default(0)
+  clickerCost           BigInt      @default(100)
+  multiplierCost        BigInt      @default(150)
+  clickerMultiplierCost BigInt      @default(1000)
+  clickerGain           BigInt      @default(1)
   updatedAt             DateTime @updatedAt
   user                  User     @relation(fields: [userId], references: [id])
 }
