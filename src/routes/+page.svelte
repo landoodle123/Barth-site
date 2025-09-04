@@ -205,7 +205,7 @@
   <h2>The best site ever</h2>
   <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>Pet Bartholomue ✋🐈</button>
   <p>Bartholomue has been petted {count} times.</p>
-  <p>Warning, pressing "enter" with the site focused *will* reset your progress.</p>
+  <p class="warningLabel">Warning, pressing "enter" with the site focused *will* reset your progress.</p>
   <button class="resetbutton" on:click={reset}>
     {confirmReset ? "Are you sure?" : "Reset"}
   </button>
@@ -236,6 +236,10 @@
 {/if}
 
 <style>
+  .warningLabel {
+    color: red;
+    font-weight: bold;
+  }
   .resetbutton {
     background-color: red;
     color: white;
