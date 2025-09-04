@@ -99,7 +99,7 @@
     if (count >= multiplierCost) {
       count = count - multiplierCost;
       amountGained = amountGained * 2;
-      multiplierCost = Math.floor(multiplierCost * 3);
+      multiplierCost = Math.floor(multiplierCost * 1);
     }
   }
 
