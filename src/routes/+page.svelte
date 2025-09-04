@@ -23,18 +23,18 @@
   const MAX_VARIANCE_MS = 5;
 
   async function fetchState() {
-    const res = await fetch('/api/game-state');
-    if (res.ok) {
-      const data = await res.json();
-      count = data.count ?? 0;
-      amountGained = data.amountGained ?? 1;
-      clickerCount = data.clickerCount ?? 0;
-      clickerCost = data.clickerCost ?? 100;
-      multiplierCost = data.multiplierCost ?? 150;
-      clickerMultiplierCost = data.clickerMultiplierCost ?? 1000;
-      clickerGain = data.clickerGain ?? 1;
-    }
+  const res = await fetch('/api/game-state');
+  if (res.ok) {
+    const data = await res.json();
+    count = parseInt(data.count ?? "0");
+    amountGained = parseInt(data.amountGained ?? "1");
+    clickerCount = parseInt(data.clickerCount ?? "0");
+    clickerCost = parseInt(data.clickerCost ?? "100");
+    multiplierCost = parseInt(data.multiplierCost ?? "150");
+    clickerMultiplierCost = parseInt(data.clickerMultiplierCost ?? "1000");
+    clickerGain = parseInt(data.clickerGain ?? "1");
   }
+}
 
   async function saveState() {
     try {
