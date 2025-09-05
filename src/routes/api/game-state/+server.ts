@@ -3,6 +3,16 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 
 const prisma = new PrismaClient();
 
+// Utility to safely serialize BigInt values
+function serializeBigInts(obj: Record<string, any>) {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      key,
+      typeof value === 'bigint' ? value.toString() : value
+    ])
+  );
+}
+
 // Obfuscated anti-cheat: resets if account <1 day old and jump is huge
 function _ac(prev, next, createdAt) {
   const now = Date.now();
@@ -23,7 +33,8 @@ export const GET: RequestHandler = async ({ locals }) => {
       await prisma.gameState.create({ data: { userId } });
       gameState = await prisma.gameState.findUnique({ where: { userId } });
     }
-    return json(gameState);
+
+    return json(serializeBigInts(gameState));
   } catch (err) {
     console.error('GET /api/game-state error:', err);
     return json({ error: 'Internal server error' }, { status: 500 });
@@ -65,6 +76,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       update: data,
       create: { userId, ...data }
     });
+
     return json({ success: true });
   } catch (err) {
     console.error('API error:', err);
