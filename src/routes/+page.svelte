@@ -37,29 +37,35 @@
   }
 
   async function saveState() {
-    try {
-      const res = await fetch('/api/game-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          count,
-          amountGained,
-          clickerCount,
-          clickerCost,
-          multiplierCost,
-          clickerMultiplierCost,
-          clickerGain
-        })
-      });
-      if (res.ok) {
-        showSaveMessage(`Saved at ${new Date().toLocaleTimeString()} successfully`, 'success');
+  try {
+    const res = await fetch('/api/game-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        count,
+        amountGained,
+        clickerCount,
+        clickerCost,
+        multiplierCost,
+        clickerMultiplierCost,
+        clickerGain
+      })
+    });
+    if (res.ok) {
+      showSaveMessage(`Saved at ${new Date().toLocaleTimeString()} successfully`, 'success');
+    } else {
+      const data = await res.json();
+      if (data.error === 'anticheat') {
+        showSaveMessage('Anticheat violation detected, progress reset.', 'error');
+        quickReset();
       } else {
         showSaveMessage('Save failed! E: Server error', 'error');
       }
-    } catch (e) {
-      showSaveMessage('Save failed! E: Disconnected from network', 'error');
     }
+  } catch (e) {
+    showSaveMessage('Save failed! E: Disconnected from network', 'error');
   }
+}
 
   function showSaveMessage(message, type) {
     saveMessage = message;
