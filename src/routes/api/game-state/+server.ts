@@ -17,10 +17,11 @@ function serializeBigInts(obj: Record<string, any>) {
 function _ac(prev, next, createdAt) {
   const now = Date.now();
   const created = new Date(createdAt).getTime();
-  const age = (now - created) / (1000 * 60 * 60 * 24); // days since account creation
-  const jump = (next.count ?? 0) - (prev.count ?? 0);
-  // If account is less than 1 day old and jump is more than 10,000, flag as cheat
-  return age < 1 && jump > 500000000;
+  const age = (now - created) / (1000 * 60 * 60 * 24);
+  const prevCount = Number(prev.count ?? 0);
+  const nextCount = Number(next.count ?? 0);
+  const jump = nextCount - prevCount;
+  return age < 1 && jump > 500_000_000;
 }
 
 export const GET: RequestHandler = async ({ locals }) => {
