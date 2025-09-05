@@ -13,6 +13,7 @@ model User {
   name      String?
   password  String
   gameState GameState?
+  createdAt DateTime @default(now())
 }
 
 model GameState {
