@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import {SCRIPT_KEY} from '$env';
 
   let count = 0;
   let amountGained = 1;
@@ -40,7 +41,10 @@
   try {
     const res = await fetch('/api/game-state', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-script-key': SCRIPT_KEY
+      },
       body: JSON.stringify({
         count,
         amountGained,
