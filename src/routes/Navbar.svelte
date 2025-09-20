@@ -78,6 +78,21 @@
     display: flex;
     gap: 24px;
     align-items: center;
+    max-width: 50%;
+    justify-content: flex-end;
+  }
+
+  /* allow title to shrink and truncate */
+  .navbar-text {
+    max-width: 48%;
+    overflow: hidden;
+  }
+  .navbar-text a {
+    display: inline-block;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 100%;
   }
 
   .navbar-links a,
@@ -136,7 +151,7 @@
     .links-container {
       position: absolute;
       top: 64px;
-      right: 12px;
+  right: 8px;
       background: rgba(255,255,255,0.95);
       color: #000;
       flex-direction: column;
@@ -147,7 +162,7 @@
       transform-origin: top right;
       display: none;
       min-width: 140px;
-      z-index: 50;
+  z-index: 9999;
     }
     .links-container.mobile-open {
       display: flex;
