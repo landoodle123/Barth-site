@@ -54,8 +54,8 @@
 
 <style>
   .login-form {
-    background: #fff;
-    color: #222;
+    background: #333;
+    color: #fff;
     border-radius: 16px;
     box-shadow: 0 2px 16px rgba(0,0,0,0.08);
     padding: 32px 24px;
@@ -70,14 +70,14 @@
     margin: 0 0 8px 0;
     font-size: 2rem;
     font-weight: 700;
-    color: #222;
+    color: #fff;
   }
   .login-form label {
     display: flex;
     flex-direction: column;
     font-size: 1.1rem;
     gap: 4px;
-    color: #222;
+    color: #fff;
     font-weight: 500;
   }
   .login-form input[type="email"],
@@ -86,8 +86,8 @@
     border-radius: 8px;
     padding: 8px 12px;
     font-size: 1rem;
-    background: #fafafa;
-    color: #222;
+    background: #444;
+    color: #fff;
     outline: none;
     transition: border-color 0.2s;
   }

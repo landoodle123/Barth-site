@@ -1,15 +1,30 @@
 <script lang="ts">
+import { isProfane } from 'no-profanity';
+
   let email = '';
   let name = '';
   let password = '';
   let confirm = '';
   let error = '';
   let loading = false;
+  const commonPasswords = ['12345678', 'password', 'qwertyui', 'letmein1', 'welcome1', 'iloveyou', 'admin123', 'password1', '123456789', '1234567890'];
 
   async function handleSignup() {
     error = '';
     if (password.length < 8) {
       error = 'Password must be at least 8 characters.';
+      return;
+    }
+    if (commonPasswords.includes(password)) {
+      error = 'Password is too common.';
+      return;
+    }
+    if (isProfane(name) == true) {
+      error = 'Name contains inappropriate language.';
+      return;
+    }
+    if (name.length > 20) {
+      error = 'Name must be less than 20 characters.';
       return;
     }
     if (password !== confirm) {
@@ -63,8 +78,8 @@
 
 <style>
   .signup-form {
-    background: #fff;
-    color: #222;
+    background: #333;
+    color: #fff;
     border-radius: 16px;
     box-shadow: 0 2px 16px rgba(0,0,0,0.08);
     padding: 32px 24px;
@@ -79,14 +94,14 @@
     margin: 0 0 8px 0;
     font-size: 2rem;
     font-weight: 700;
-    color: #222;
+    color: #fff;
   }
   .signup-form label {
     display: flex;
     flex-direction: column;
     font-size: 1.1rem;
     gap: 4px;
-    color: #222;
+    color: #fff;
     font-weight: 500;
   }
   .signup-form input[type="email"],
@@ -96,8 +111,8 @@
     border-radius: 8px;
     padding: 8px 12px;
     font-size: 1rem;
-    background: #fafafa;
-    color: #222;
+    background: #444;
+    color: #fff;
     outline: none;
     transition: border-color 0.2s;
   }

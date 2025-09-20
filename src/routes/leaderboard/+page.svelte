@@ -6,8 +6,8 @@
 <p>You are not supposed to see this</p>
 <h1>Leaderboard</h1>
 
-<ul>
+<ol>
   {#each data.leaderboard as entry}
     <li>{entry.user.name ?? 'Unnamed'}: {entry.count}</li>
   {/each}
-</ul>
+</ol>
