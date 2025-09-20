@@ -1,15 +1,30 @@
 <script lang="ts">
+import { isProfane } from 'no-profanity';
+
   let email = '';
   let name = '';
   let password = '';
   let confirm = '';
   let error = '';
   let loading = false;
+  const commonPasswords = ['12345678', 'password', 'qwertyui', 'letmein1', 'welcome1', 'iloveyou', 'admin123', 'password1', '123456789', '1234567890'];
 
   async function handleSignup() {
     error = '';
     if (password.length < 8) {
       error = 'Password must be at least 8 characters.';
+      return;
+    }
+    if (commonPasswords.includes(password)) {
+      error = 'Password is too common.';
+      return;
+    }
+    if (isProfane(name) == true) {
+      error = 'Name contains inappropriate language.';
+      return;
+    }
+    if (name.length > 20) {
+      error = 'Name must be less than 20 characters.';
       return;
     }
     if (password !== confirm) {

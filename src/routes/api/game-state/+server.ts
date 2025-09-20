@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { SCRIPT_KEY } from '$env/static/private';
 import { json, type RequestHandler } from '@sveltejs/kit';
 
 const prisma = new PrismaClient();
@@ -46,10 +45,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     const userId = locals.user?.id;
-    const clientKey = request.headers.get('x-script-key');
-    if (clientKey !== SCRIPT_KEY) {
-      return json({ error: 'Invalid script key' }, { status: 403 });
-    }
     if (!userId) return json({ error: 'Not logged in' }, { status: 401 });
 
     const data = await request.json();
