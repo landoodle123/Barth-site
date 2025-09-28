@@ -244,12 +244,20 @@
   <button class="button" on:click={buyClickerMultiplier}>Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
 
   <div class="photogallery">
-    <h2>Photo Gallery</h2>
+  <h2>Photo Gallery</h2>
+  <div class="grid">
     <img src="/lib/images/bartholomue.png" alt="bartholomue the great">
     <img src="/lib/images/imAllEars.jpg" alt="i'm all ears looking ahh cat">
     <img src="/lib/images/catThatProbWantsFood.jpg" alt="cat that definitely wants food">
-    <p>cat</p>
+    <img src="/lib/images/bonk.jpg" alt="sneak attack">
+    <img src="/lib/images/cat.png" alt="cat">
+    <img src="/lib/images/cokecat.png" alt="coke cat">
+    <img src="/lib/images/ohlawdhecoming.jpg" alt="chonky">
+    <img src="/lib/images/protein.png" alt="protein shake">
+    <img src="/lib/images/goob.jpeg" alt="goob">
   </div>
+  <p>cat</p>
+</div>
 </main>
 {:else}
 <main>
@@ -276,12 +284,23 @@
     transition: background-color 0.3s;
   }
   .photogallery {
-    width: 200px;
-    height: auto;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-  }
+  width: 80%;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.grid {
+  column-count: 3;
+  column-gap: 15px;
+}
+
+.grid img {
+  width: 100%;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  break-inside: avoid;
+}
   .save-popup {
     position: fixed;
     top: 24px;
