@@ -21,6 +21,7 @@
   const AUTODETECT_WINDOW = 15;
   const MIN_INTERVAL_MS = 90;
   const MAX_VARIANCE_MS = 5;
+  const audio = new Audio('/lib/audios/meow.mp3');
 
   async function fetchState() {
   const res = await fetch('/api/game-state');
@@ -144,6 +145,7 @@
       return;
     }
     count = count + amountGained;
+    audio.play(audio);
   }
 
   function reset() {
