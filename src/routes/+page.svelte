@@ -12,6 +12,7 @@
   let confirmReset = false;
   let loaded = false;
   let saveInterval;
+  let audio;
 
   let saveMessage = '';
   let saveMessageType = '';
@@ -21,56 +22,58 @@
   const AUTODETECT_WINDOW = 15;
   const MIN_INTERVAL_MS = 90;
   const MAX_VARIANCE_MS = 5;
-  onMount(() => {
-    audio = new Audio('/lib/audios/meow.mp3');
-  });
 
   async function fetchState() {
-  const res = await fetch('/api/game-state');
-  if (res.ok) {
-    const data = await res.json();
-    count = parseInt(data.count ?? "0");
-    amountGained = parseInt(data.amountGained ?? "1");
-    clickerCount = parseInt(data.clickerCount ?? "0");
-    clickerCost = parseInt(data.clickerCost ?? "100");
-    multiplierCost = parseInt(data.multiplierCost ?? "150");
-    clickerMultiplierCost = parseInt(data.clickerMultiplierCost ?? "1000");
-    clickerGain = parseInt(data.clickerGain ?? "1");
+    try {
+      const res = await fetch('/api/game-state');
+      if (res.ok) {
+        const data = await res.json();
+        count = parseInt(data.count ?? "0");
+        amountGained = parseInt(data.amountGained ?? "1");
+        clickerCount = parseInt(data.clickerCount ?? "0");
+        clickerCost = parseInt(data.clickerCost ?? "100");
+        multiplierCost = parseInt(data.multiplierCost ?? "150");
+        clickerMultiplierCost = parseInt(data.clickerMultiplierCost ?? "1000");
+        clickerGain = parseInt(data.clickerGain ?? "1");
+      } else {
+        console.error('Failed to fetch game state', res.status);
+      }
+    } catch (e) {
+      console.error('Error fetching game state:', e);
+    }
   }
-}
 
   async function saveState() {
-  try {
-    const res = await fetch('/api/game-state', {
-      method: 'POST',
-      headers: { 
-  'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        count,
-        amountGained,
-        clickerCount,
-        clickerCost,
-        multiplierCost,
-        clickerMultiplierCost,
-        clickerGain
-      })
-    });
-    if (res.ok) {
-      showSaveMessage(`Saved at ${new Date().toLocaleTimeString()} successfully`, 'success');
-    } else {
-      const data = await res.json();
-      if (data.error === 'anticheat') {
-        showSaveMessage('Anticheat violation detected, progress reset.', 'error');
-        quickReset();
+    try {
+      const res = await fetch('/api/game-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          count,
+          amountGained,
+          clickerCount,
+          clickerCost,
+          multiplierCost,
+          clickerMultiplierCost,
+          clickerGain
+        })
+      });
+
+      if (res.ok) {
+        showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
       } else {
-        showSaveMessage('Save failed! E: Server error', 'error');
+        const data = await res.json();
+        if (data.error === 'anticheat') {
+          showSaveMessage('Anticheat violation detected, progress reset.', 'error');
+          quickReset();
+        } else {
+          showSaveMessage('Save failed! Server error', 'error');
+        }
       }
+    } catch (e) {
+      showSaveMessage('Save failed! Disconnected from network', 'error');
     }
-  } catch (e) {
-    showSaveMessage('Save failed! E: Disconnected from network', 'error');
   }
-}
 
   function showSaveMessage(message, type) {
     saveMessage = message;
@@ -91,7 +94,7 @@
     clearAllClickers();
     for (let i = 0; i < clickerCount; i++) {
       const interval = setInterval(() => {
-        count = count + clickerGain;
+        count += clickerGain;
       }, 1000);
       clickerIntervals.push(interval);
     }
@@ -99,8 +102,8 @@
 
   function buyClicker() {
     if (count >= clickerCost) {
-      count = count - clickerCost;
-      clickerCount = clickerCount + 1;
+      count -= clickerCost;
+      clickerCount += 1;
       clickerCost = Math.floor(clickerCost * 2.5);
       startAllClickers();
     }
@@ -108,16 +111,16 @@
 
   function buyMultiplier() {
     if (count >= multiplierCost) {
-      count = count - multiplierCost;
-      amountGained = amountGained * 2;
+      count -= multiplierCost;
+      amountGained *= 2;
       multiplierCost = Math.floor(multiplierCost * 3);
     }
   }
 
   function buyClickerMultiplier() {
     if (count >= clickerMultiplierCost) {
-      count = count - clickerMultiplierCost;
-      clickerGain = clickerGain * 2;
+      count -= clickerMultiplierCost;
+      clickerGain *= 2;
       clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
       startAllClickers();
     }
@@ -146,23 +149,17 @@
       clickTimestamps = [];
       return;
     }
-    count = count + amountGained;
-    audio.play(audio);
+    count += amountGained;
+    try {
+      audio?.play();
+    } catch (e) {
+      console.warn('Audio play failed:', e);
+    }
   }
 
   function reset() {
     if (confirmReset) {
-      count = 0;
-      clickerCount = 0;
-      clickerCost = 100;
-      multiplierCost = 150;
-      clickerMultiplierCost = 1000;
-      clickerGain = 1;
-      amountGained = 1;
-      clearAllClickers();
-      confirmReset = false;
-      startAllClickers();
-      saveState();
+      quickReset();
     } else {
       confirmReset = true;
       setTimeout(() => (confirmReset = false), 3000);
@@ -185,7 +182,7 @@
 
   function handleKeydown(e) {
     if (e.key === "Enter") {
-      alert("Enter key pressed! Progress reset. The enter key can be used to cheat significant amounts of points rapidly, thus pressing it can reset your progress.");
+      alert("Enter key pressed! Progress reset.");
       e.preventDefault();
       e.stopPropagation();
       quickReset();
@@ -193,10 +190,16 @@
   }
 
   onMount(async () => {
-    await fetchState();
+    // Initialize audio on client
+    audio = new Audio('/lib/audios/meow.mp3');
+
+    // Fetch state safely
+    await fetchState().catch((e) => console.error('Fetch failed:', e));
+
     startAllClickers();
     loaded = true;
-    saveInterval = setInterval(saveState, 60000); // Save every minute
+
+    saveInterval = setInterval(saveState, 60000);
   });
 
   onDestroy(() => {
@@ -206,30 +209,40 @@
 </script>
 
 {#if saveMessage}
-  <div class="save-popup {saveMessageType}">
-    {saveMessage}
-  </div>
+  <div class="save-popup {saveMessageType}">{saveMessage}</div>
 {/if}
 
 {#if loaded}
 <main>
   <h1>Welcome to the Great Realm of Bartholomue!</h1>
   <h2>The best site ever</h2>
-  <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>Pet Bartholomue ✋🐈</button>
+  <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>
+    Pet Bartholomue ✋🐈
+  </button>
   <p>Bartholomue has been petted {count} times.</p>
-  <p class="warningLabel">Warning, pressing "enter" with the site focused *will* reset your progress.</p>
+  <p class="warningLabel">
+    Warning, pressing "enter" with the site focused *will* reset your progress.
+  </p>
+
   <button class="resetbutton" on:click={reset}>
     {confirmReset ? "Are you sure?" : "Reset"}
   </button>
   <button class="button" on:click={saveState}>Update</button>
+
   <br><br>
-  <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
-  <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks per second!</p>
+
+  <button class="button" on:click={buyClicker}>Add Clicker ({clickerCost} clicks)</button>
+  <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks/sec!</p>
+
   <br>
-  <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
-  <p>Each click is being multiplied by {amountGained}!</p>
+
+  <button class="button" on:click={buyMultiplier}>Add Multiplier ({multiplierCost} clicks)</button>
+  <p>Each click is multiplied by {amountGained}!</p>
+
   <br>
-  <button on:click={buyClickerMultiplier} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
+
+  <button class="button" on:click={buyClickerMultiplier}>Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
+
   <div class="photogallery">
     <h2>Photo Gallery</h2>
     <img src="/lib/images/bartholomue.png" alt="bartholomue the great">
