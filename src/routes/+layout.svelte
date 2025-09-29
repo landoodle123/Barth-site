@@ -9,6 +9,9 @@
     <main>
         <slot />
     </main>
+    <footer>
+        <p>Barth Site v2.4 | Created by <a href=https://github.com/landoodle123>landoodle123 on GitHub</a></p>
+    </footer>
 </div>
 
 <style>
