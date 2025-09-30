@@ -31,7 +31,7 @@ img {
 .button {
   background-color: white; /* Button background color */
   color: black;            /* Text color */
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif; /* Font family */
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif; /* Font family */
   border: none;           /* No border */
   border-radius: 25px;   /* Rounded corners */
   padding: 10px 20px;    /* Padding for the button */

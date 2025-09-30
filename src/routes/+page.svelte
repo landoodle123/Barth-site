@@ -306,7 +306,7 @@
   .resetbutton {
     background-color: red;
     color: white;
-    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
     border: none;
     border-radius: 25px;
     padding: 10px 20px;
