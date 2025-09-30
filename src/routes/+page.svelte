@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
 
+  // variable declarations
   let count = 0;
   let amountGained = 1;
   let clickerCount = 0;
@@ -18,12 +19,14 @@
   let saveMessageType = '';
   let saveMessageTimeout;
 
+  // AUTO_DETECT vars and consts
   let clickTimestamps = [];
-  const AUTODETECT_WINDOW = 15;
-  const MIN_INTERVAL_MS = 90;
-  const MAX_VARIANCE_MS = 5;
+  const WINDOW = 15;
+  const MS_INTVL = 90;
+  const MS_VARNC = 5;
 
   async function fetchState() {
+    // error-handled fetch function, checks gamestate and sets vars to vals pulled from db
     try {
       const res = await fetch('/api/game-state');
       if (res.ok) {
@@ -44,6 +47,7 @@
   }
 
   async function saveState() {
+    // error-handled save function, sends current gamestate to db
     try {
       const res = await fetch('/api/game-state', {
         method: 'POST',
@@ -63,6 +67,7 @@
         showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
       } else {
         const data = await res.json();
+        // ac violation detection and quickreset
         if (data.error === 'anticheat') {
           showSaveMessage('Anticheat violation detected, progress reset.', 'error');
           quickReset();
@@ -70,11 +75,13 @@
           showSaveMessage('Save failed! Server error', 'error');
         }
       }
+    // check for network connection
     } catch (e) {
       showSaveMessage('Save failed! Disconnected from network', 'error');
     }
   }
 
+  // shows save message box on screen
   function showSaveMessage(message, type) {
     saveMessage = message;
     saveMessageType = type;
@@ -85,11 +92,13 @@
     }, 3000);
   }
 
+  // disables built-in clickers
   function clearAllClickers() {
     clickerIntervals.forEach(clearInterval);
     clickerIntervals = [];
   }
 
+  // enables built-in clickers
   function startAllClickers() {
     clearAllClickers();
     for (let i = 0; i < clickerCount; i++) {
@@ -100,6 +109,7 @@
     }
   }
 
+  // purchases a new clicker and increases the cost
   function buyClicker() {
     if (count >= clickerCost) {
       count -= clickerCost;
@@ -109,6 +119,7 @@
     }
   }
 
+  // purchases a new multiplier and increases the cost
   function buyMultiplier() {
     if (count >= multiplierCost) {
       count -= multiplierCost;
@@ -117,6 +128,8 @@
     }
   }
 
+  // purchases a new clickerMultiplier and increases the cost
+  // TODO: Balance a tad more, maybe change gain or costs
   function buyClickerMultiplier() {
     if (count >= clickerMultiplierCost) {
       count -= clickerMultiplierCost;
@@ -126,30 +139,36 @@
     }
   }
 
-  function detectAutoclicker() {
-    if (clickTimestamps.length < AUTODETECT_WINDOW) return false;
+  // intentionally obfuscated function
+  function AUTO_DETECTOR() {
+    if (clickTimestamps.length < WINDOW) return false;
     let intervals = [];
     for (let i = 1; i < clickTimestamps.length; i++) {
       intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
     }
     const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
     const variance = intervals.reduce((a, b) => a + Math.abs(b - avg), 0) / intervals.length;
-    return avg < MIN_INTERVAL_MS && variance < MAX_VARIANCE_MS;
+    return avg < MS_INTVL && variance < MS_VARNC;
   }
 
+  // adds a click * multiplier count to the val "count" and runs AUTO_DETECTOR() while playing audio
   function incrementCount() {
+    // check for click timestamps
     const now = Date.now();
     clickTimestamps = [...clickTimestamps, now];
-    if (clickTimestamps.length > AUTODETECT_WINDOW) {
-      clickTimestamps = clickTimestamps.slice(-AUTODETECT_WINDOW);
+    if (clickTimestamps.length > WINDOW) {
+      clickTimestamps = clickTimestamps.slice(-WINDOW);
     }
-    if (detectAutoclicker()) {
+    // run AUTO_DETECTOR()
+    if (AUTO_DETECTOR()) {
       alert("Autoclicker detected! Progress reset.");
       quickReset();
       clickTimestamps = [];
       return;
     }
+    // add count
     count += amountGained;
+    //run audio playback
     try {
       audio?.play();
     } catch (e) {
@@ -157,6 +176,7 @@
     }
   }
 
+  // reset confirmation
   function reset() {
     if (confirmReset) {
       quickReset();
@@ -166,6 +186,7 @@
     }
   }
 
+  // resets all vals, used in reset() and for ac violations
   function quickReset() {
     count = 0;
     clickerCount = 0;
@@ -180,6 +201,7 @@
     saveState();
   }
 
+  // checks for enter key exploit
   function handleKeydown(e) {
     if (e.key === "Enter") {
       alert("Enter key pressed! Progress reset.");
@@ -189,6 +211,7 @@
     }
   }
 
+  // runs fetch functions and sets up audio, prepares autosave
   onMount(async () => {
     // Initialize audio on client
     audio = new Audio('/lib/audios/meow.mp3');
@@ -202,18 +225,22 @@
     saveInterval = setInterval(saveState, 60000);
   });
 
+  // idk what this does tbh
   onDestroy(() => {
     clearAllClickers();
     if (saveInterval) clearInterval(saveInterval);
   });
 </script>
 
+
 {#if saveMessage}
+<!--save message logic-->
   <div class="save-popup {saveMessageType}">{saveMessage}</div>
 {/if}
 
 {#if loaded}
 <main>
+  <!--main site markup-->
   <h1>Welcome to the Great Realm of Bartholomue!</h1>
   <h2>The best site ever</h2>
   <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>
@@ -243,6 +270,7 @@
 
   <button class="button" on:click={buyClickerMultiplier}>Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
 
+  <!--cat photo-->
   <div class="photogallery">
   <h2>Photo Gallery</h2>
   <div class="grid">
@@ -261,6 +289,7 @@
 </main>
 {:else}
 <main>
+  <!--checks for loaded state-->
   <div class="spinner-container">
     <div class="spinner"></div>
     <h2>Loading...</h2>
@@ -269,6 +298,7 @@
 {/if}
 
 <style>
+  /*stylesheets are fairly self-explanatory*/
   .warningLabel {
     color: red;
     font-weight: bold;

@@ -13,8 +13,8 @@ function serializeBigInts(obj: Record<string, any>) {
   );
 }
 
-// Obfuscated anti-cheat: resets if account <1 day old and jump is huge
-function _ac(prev, next, createdAt) {
+// Age and jump checker
+function _checkAgeAndJump(prev, next, createdAt) {
   const now = Date.now();
   const created = new Date(createdAt).getTime();
   const age = (now - created) / (1000 * 60 * 60 * 24);
@@ -56,7 +56,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     // Remove 'createdAt' from user select, since it's not in your schema
     // Instead, use the createdAt from the GameState model (if you want creation time)
-    if (prev && prev.userId && prev.updatedAt && _ac(prev, { count: data.count ?? 0 }, prev.updatedAt)) {
+    if (prev && prev.userId && prev.updatedAt && _checkAgeAndJump(prev, { count: data.count ?? 0 }, prev.updatedAt)) {
       await prisma.gameState.update({
       where: { userId },
       data: {
