@@ -14,6 +14,7 @@
   let loaded = false;
   let saveInterval;
   let audio;
+  let audioWarningShown = false;
 
   let saveMessage = '';
   let saveMessageType = '';
@@ -173,6 +174,10 @@
       audio?.play();
     } catch (e) {
       console.warn('Audio play failed:', e);
+      if (!audioWarningShown) {
+        showSaveMessage('Audio playback failed', 'error');
+        audioWarningShown = true;
+      }
     }
   }
 
