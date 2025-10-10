@@ -45,11 +45,15 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
           clickerGain = parseInt(data.clickerGain ?? "1");
         } else {
           console.error('Failed to fetch game state', res.status);
-          showSaveMessage('Failed to load save data from server' + res.status, 'error');
+          if (res.status === 401) {
+            showSaveMessage('Not logged in, progress will not be saved', 'error');
+          } else {
+            showSaveMessage('Failed to load save data from server. Error: ' + res.status, 'error');
+          }
         }
       } catch (e) {
         console.error('Error fetching game state:', e);
-        showSaveMessage('Error fetching game state: ' + e.message, 'error');
+        showSaveMessage('Error fetching game state. Error: ' + e.message, 'error');
       }
     }
 
