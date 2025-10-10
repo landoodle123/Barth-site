@@ -24,6 +24,7 @@ function _checkAgeAndJump(prev, next, createdAt) {
   return age < 1 && jump > 500_000_000;
 }
 
+// GET handler to fetch game state
 export const GET: RequestHandler = async ({ locals }) => {
   try {
     const userId = locals.user?.id;
@@ -42,6 +43,7 @@ export const GET: RequestHandler = async ({ locals }) => {
   }
 };
 
+// POST handler to update game state
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     const userId = locals.user?.id;
@@ -54,8 +56,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       select: { id: true, name: true, email: true, password: true }
     });
 
-    // Remove 'createdAt' from user select, since it's not in your schema
-    // Instead, use the createdAt from the GameState model (if you want creation time)
     if (prev && prev.userId && prev.updatedAt && _checkAgeAndJump(prev, { count: data.count ?? 0 }, prev.updatedAt)) {
       await prisma.gameState.update({
       where: { userId },

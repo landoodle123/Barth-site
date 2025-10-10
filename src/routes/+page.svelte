@@ -1,424 +1,426 @@
-<script>
-  import { onMount, onDestroy } from 'svelte';
+  <script>
+    import { onMount, onDestroy } from 'svelte';
 
-  // variable declarations
-  let count = 0;
-  let amountGained = 1;
-  let clickerCount = 0;
-  let clickerCost = 100;
-  let multiplierCost = 150;
-  let clickerMultiplierCost = 1000;
-  let clickerGain = 1;
-  let clickerIntervals = [];
-  let confirmReset = false;
-  let loaded = false;
-  let saveInterval;
-  let audio;
-  let audioWarningShown = false;
+    // variable declarations
+    let count = 0;
+    let amountGained = 1;
+    let clickerCount = 0;
+    let clickerCost = 100;
+    let multiplierCost = 150;
+    let clickerMultiplierCost = 1000;
+    let clickerGain = 1;
+    let clickerIntervals = [];
+    let confirmReset = false;
+    let loaded = false;
+    let saveInterval;
+    let audio;
+    let audioWarningShown = false;
 
-  let saveMessage = '';
-  let saveMessageType = '';
-  let saveMessageTimeout;
+    let saveMessage = '';
+    let saveMessageType = '';
+    let saveMessageTimeout;
 
-  // AUTO_DETECT vars and consts
-  let clickTimestamps = [];
-  const WINDOW = 15;
-  const MS_INTVL = 90;
-  const MS_VARNC = 5;
+    // AUTO_DETECT vars and consts
+    let clickTimestamps = [];
+    const WINDOW = 15;
+    const MS_INTVL = 90;
+    const MS_VARNC = 5;
 
-  async function fetchState() {
-    // error-handled fetch function, checks gamestate and sets vars to vals pulled from db
-    try {
-      const res = await fetch('/api/game-state');
-      if (res.ok) {
-        const data = await res.json();
-        count = parseInt(data.count ?? "0");
-        amountGained = parseInt(data.amountGained ?? "1");
-        clickerCount = parseInt(data.clickerCount ?? "0");
-        clickerCost = parseInt(data.clickerCost ?? "100");
-        multiplierCost = parseInt(data.multiplierCost ?? "150");
-        clickerMultiplierCost = parseInt(data.clickerMultiplierCost ?? "1000");
-        clickerGain = parseInt(data.clickerGain ?? "1");
-      } else {
-        console.error('Failed to fetch game state', res.status);
-      }
-    } catch (e) {
-      console.error('Error fetching game state:', e);
-    }
-  }
-
-  async function saveState() {
-    // error-handled save function, sends current gamestate to db
-    try {
-      const res = await fetch('/api/game-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          count,
-          amountGained,
-          clickerCount,
-          clickerCost,
-          multiplierCost,
-          clickerMultiplierCost,
-          clickerGain
-        })
-      });
-
-      if (res.ok) {
-        showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
-      } else {
-        const data = await res.json();
-        // ac violation detection and quickreset
-        if (data.error === 'anticheat') {
-          showSaveMessage('Anticheat violation detected, progress reset.', 'error');
-          quickReset();
+    async function fetchState() {
+      // error-handled fetch function, checks gamestate and sets vars to vals pulled from db
+      try {
+        const res = await fetch('/api/game-state');
+        if (res.ok) {
+          const data = await res.json();
+          count = parseInt(data.count ?? "0");
+          amountGained = parseInt(data.amountGained ?? "1");
+          clickerCount = parseInt(data.clickerCount ?? "0");
+          clickerCost = parseInt(data.clickerCost ?? "100");
+          multiplierCost = parseInt(data.multiplierCost ?? "150");
+          clickerMultiplierCost = parseInt(data.clickerMultiplierCost ?? "1000");
+          clickerGain = parseInt(data.clickerGain ?? "1");
         } else {
-          showSaveMessage('Save failed! Server error', 'error');
+          console.error('Failed to fetch game state', res.status);
+          showSaveMessage('Failed to load save data from server' + res.status, 'error');
+        }
+      } catch (e) {
+        console.error('Error fetching game state:', e);
+        showSaveMessage('Error fetching game state: ' + e.message, 'error');
+      }
+    }
+
+    async function saveState() {
+      // error-handled save function, sends current gamestate to db
+      try {
+        const res = await fetch('/api/game-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            count,
+            amountGained,
+            clickerCount,
+            clickerCost,
+            multiplierCost,
+            clickerMultiplierCost,
+            clickerGain
+          })
+        });
+
+        if (res.ok) {
+          showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
+        } else {
+          const data = await res.json();
+          // ac violation detection and quickreset
+          if (data.error === 'anticheat') {
+            showSaveMessage('Anticheat violation detected, progress reset.', 'error');
+            quickReset();
+          } else {
+            showSaveMessage('Save failed! Server error', 'error');
+          }
+        }
+      // check for network connection
+      } catch (e) {
+        showSaveMessage('Save failed! Disconnected from network', 'error');
+      }
+    }
+
+    // shows save message box on screen
+    function showSaveMessage(message, type) {
+      saveMessage = message;
+      saveMessageType = type;
+      clearTimeout(saveMessageTimeout);
+      saveMessageTimeout = setTimeout(() => {
+        saveMessage = '';
+        saveMessageType = '';
+      }, 3000);
+    }
+
+    // disables built-in clickers
+    function clearAllClickers() {
+      clickerIntervals.forEach(clearInterval);
+      clickerIntervals = [];
+    }
+
+    // enables built-in clickers
+    function startAllClickers() {
+      clearAllClickers();
+      for (let i = 0; i < clickerCount; i++) {
+        const interval = setInterval(() => {
+          count += clickerGain;
+        }, 1000);
+        clickerIntervals.push(interval);
+      }
+    }
+
+    // purchases a new clicker and increases the cost
+    function buyClicker() {
+      if (count >= clickerCost) {
+        count -= clickerCost;
+        clickerCount += 1;
+        clickerCost = Math.floor(clickerCost * 2.5);
+        startAllClickers();
+      }
+    }
+
+    // purchases a new multiplier and increases the cost
+    function buyMultiplier() {
+      if (count >= multiplierCost) {
+        count -= multiplierCost;
+        amountGained *= 2;
+        multiplierCost = Math.floor(multiplierCost * 3);
+      }
+    }
+
+    // purchases a new clickerMultiplier and increases the cost
+    // TODO: Balance a tad more, maybe change gain or costs
+    function buyClickerMultiplier() {
+      if (count >= clickerMultiplierCost) {
+        count -= clickerMultiplierCost;
+        clickerGain *= 2;
+        clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
+        startAllClickers();
+      }
+    }
+
+    // intentionally obfuscated function
+    function AUTO_DETECTOR() {
+      if (clickTimestamps.length < WINDOW) return false;
+      let intervals = [];
+      for (let i = 1; i < clickTimestamps.length; i++) {
+        intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
+      }
+      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const variance = intervals.reduce((a, b) => a + Math.abs(b - avg), 0) / intervals.length;
+      return avg < MS_INTVL && variance < MS_VARNC;
+    }
+
+    // adds a click * multiplier count to the val "count" and runs AUTO_DETECTOR() while playing audio
+    function incrementCount() {
+      // check for click timestamps
+      const now = Date.now();
+      clickTimestamps = [...clickTimestamps, now];
+      if (clickTimestamps.length > WINDOW) {
+        clickTimestamps = clickTimestamps.slice(-WINDOW);
+      }
+      // run AUTO_DETECTOR()
+      if (AUTO_DETECTOR()) {
+        alert("Autoclicker detected! Progress reset.");
+        quickReset();
+        clickTimestamps = [];
+        return;
+      }
+      // add count
+      count += amountGained;
+      //run audio playback
+      try {
+        audio?.play();
+      } catch (e) {
+        console.warn('Audio play failed:', e);
+        if (!audioWarningShown) {
+          showSaveMessage('Audio playback failed', 'error');
+          audioWarningShown = true;
         }
       }
-    // check for network connection
-    } catch (e) {
-      showSaveMessage('Save failed! Disconnected from network', 'error');
     }
-  }
 
-  // shows save message box on screen
-  function showSaveMessage(message, type) {
-    saveMessage = message;
-    saveMessageType = type;
-    clearTimeout(saveMessageTimeout);
-    saveMessageTimeout = setTimeout(() => {
-      saveMessage = '';
-      saveMessageType = '';
-    }, 3000);
-  }
-
-  // disables built-in clickers
-  function clearAllClickers() {
-    clickerIntervals.forEach(clearInterval);
-    clickerIntervals = [];
-  }
-
-  // enables built-in clickers
-  function startAllClickers() {
-    clearAllClickers();
-    for (let i = 0; i < clickerCount; i++) {
-      const interval = setInterval(() => {
-        count += clickerGain;
-      }, 1000);
-      clickerIntervals.push(interval);
-    }
-  }
-
-  // purchases a new clicker and increases the cost
-  function buyClicker() {
-    if (count >= clickerCost) {
-      count -= clickerCost;
-      clickerCount += 1;
-      clickerCost = Math.floor(clickerCost * 2.5);
-      startAllClickers();
-    }
-  }
-
-  // purchases a new multiplier and increases the cost
-  function buyMultiplier() {
-    if (count >= multiplierCost) {
-      count -= multiplierCost;
-      amountGained *= 2;
-      multiplierCost = Math.floor(multiplierCost * 3);
-    }
-  }
-
-  // purchases a new clickerMultiplier and increases the cost
-  // TODO: Balance a tad more, maybe change gain or costs
-  function buyClickerMultiplier() {
-    if (count >= clickerMultiplierCost) {
-      count -= clickerMultiplierCost;
-      clickerGain *= 2;
-      clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
-      startAllClickers();
-    }
-  }
-
-  // intentionally obfuscated function
-  function AUTO_DETECTOR() {
-    if (clickTimestamps.length < WINDOW) return false;
-    let intervals = [];
-    for (let i = 1; i < clickTimestamps.length; i++) {
-      intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
-    }
-    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    const variance = intervals.reduce((a, b) => a + Math.abs(b - avg), 0) / intervals.length;
-    return avg < MS_INTVL && variance < MS_VARNC;
-  }
-
-  // adds a click * multiplier count to the val "count" and runs AUTO_DETECTOR() while playing audio
-  function incrementCount() {
-    // check for click timestamps
-    const now = Date.now();
-    clickTimestamps = [...clickTimestamps, now];
-    if (clickTimestamps.length > WINDOW) {
-      clickTimestamps = clickTimestamps.slice(-WINDOW);
-    }
-    // run AUTO_DETECTOR()
-    if (AUTO_DETECTOR()) {
-      alert("Autoclicker detected! Progress reset.");
-      quickReset();
-      clickTimestamps = [];
-      return;
-    }
-    // add count
-    count += amountGained;
-    //run audio playback
-    try {
-      audio?.play();
-    } catch (e) {
-      console.warn('Audio play failed:', e);
-      if (!audioWarningShown) {
-        showSaveMessage('Audio playback failed', 'error');
-        audioWarningShown = true;
+    // reset confirmation
+    function reset() {
+      if (confirmReset) {
+        quickReset();
+      } else {
+        confirmReset = true;
+        setTimeout(() => (confirmReset = false), 3000);
       }
     }
-  }
 
-  // reset confirmation
-  function reset() {
-    if (confirmReset) {
-      quickReset();
-    } else {
-      confirmReset = true;
-      setTimeout(() => (confirmReset = false), 3000);
+    // resets all vals, used in reset() and for ac violations
+    function quickReset() {
+      count = 0;
+      clickerCount = 0;
+      clickerCost = 100;
+      multiplierCost = 150;
+      clickerMultiplierCost = 1000;
+      clickerGain = 1;
+      amountGained = 1;
+      clearAllClickers();
+      confirmReset = false;
+      startAllClickers();
+      saveState();
     }
-  }
 
-  // resets all vals, used in reset() and for ac violations
-  function quickReset() {
-    count = 0;
-    clickerCount = 0;
-    clickerCost = 100;
-    multiplierCost = 150;
-    clickerMultiplierCost = 1000;
-    clickerGain = 1;
-    amountGained = 1;
-    clearAllClickers();
-    confirmReset = false;
-    startAllClickers();
-    saveState();
-  }
-
-  // checks for enter key exploit
-  function handleKeydown(e) {
-    if (e.key === "Enter") {
-      alert("Enter key pressed! Progress reset.");
-      e.preventDefault();
-      e.stopPropagation();
-      quickReset();
+    // checks for enter key exploit
+    function handleKeydown(e) {
+      if (e.key === "Enter") {
+        alert("Enter key pressed! Progress reset.");
+        e.preventDefault();
+        e.stopPropagation();
+        quickReset();
+      }
     }
-  }
 
-  // runs fetch functions and sets up audio, prepares autosave
-  onMount(async () => {
-    // Initialize audio on client
-    audio = new Audio('/lib/audios/meow.mp3');
+    // runs fetch functions and sets up audio, prepares autosave
+    onMount(async () => {
+      // Initialize audio on client
+      audio = new Audio('/lib/audios/meow.mp3');
 
-    // Fetch state safely
-    await fetchState().catch((e) => console.error('Fetch failed:', e));
+      // Fetch state safely
+      await fetchState().catch((e) => console.error('Fetch failed:', e));
 
-    startAllClickers();
-    loaded = true;
+      startAllClickers();
+      loaded = true;
 
-    saveInterval = setInterval(saveState, 60000);
-  });
+      saveInterval = setInterval(saveState, 60000);
+    });
 
-  // idk what this does tbh
-  onDestroy(() => {
-    clearAllClickers();
-    if (saveInterval) clearInterval(saveInterval);
-  });
-</script>
+    // idk what this does tbh
+    onDestroy(() => {
+      clearAllClickers();
+      if (saveInterval) clearInterval(saveInterval);
+    });
+  </script>
 
 
-{#if saveMessage}
-<!--save message logic-->
-  <div class="save-popup {saveMessageType}">{saveMessage}</div>
-{/if}
+  {#if saveMessage}
+  <!--save message logic-->
+    <div class="save-popup {saveMessageType}">{saveMessage}</div>
+  {/if}
 
-{#if loaded}
-<main>
-  <!--main site markup-->
-  <h1>Welcome to the Great Realm of Bartholomue!</h1>
-  <h2>The best site ever</h2>
-  <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>
-    Pet Bartholomue ✋🐈
-  </button>
-  <p>Bartholomue has been petted {count} times.</p>
-  <p class="warningLabel">
-    Warning, pressing "enter" with the site focused *will* reset your progress.
-  </p>
+  {#if loaded}
+  <main>
+    <!--main site markup-->
+    <h1>Welcome to the Great Realm of Bartholomue!</h1>
+    <h2>The best site ever</h2>
+    <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>
+      Pet Bartholomue ✋🐈
+    </button>
+    <p>Bartholomue has been petted {count} times.</p>
+    <p class="warningLabel">
+      Warning, pressing "enter" with the site focused *will* reset your progress.
+    </p>
 
-  <button class="resetbutton" on:click={reset}>
-    {confirmReset ? "Are you sure?" : "Reset"}
-  </button>
-  <button class="button" on:click={saveState}>Update</button>
+    <button class="resetbutton" on:click={reset}>
+      {confirmReset ? "Are you sure?" : "Reset"}
+    </button>
+    <button class="button" on:click={saveState}>Update</button>
 
-  <br><br>
+    <br><br>
 
-  <button class="button" on:click={buyClicker}>Add Clicker ({clickerCost} clicks)</button>
-  <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks/sec!</p>
+    <button class="button" on:click={buyClicker}>Add Clicker ({clickerCost} clicks)</button>
+    <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks/sec!</p>
 
-  <br>
+    <br>
 
-  <button class="button" on:click={buyMultiplier}>Add Multiplier ({multiplierCost} clicks)</button>
-  <p>Each click is multiplied by {amountGained}!</p>
+    <button class="button" on:click={buyMultiplier}>Add Multiplier ({multiplierCost} clicks)</button>
+    <p>Each click is multiplied by {amountGained}!</p>
 
-  <br>
+    <br>
 
-  <button class="button" on:click={buyClickerMultiplier}>Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
+    <button class="button" on:click={buyClickerMultiplier}>Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
 
-  <!--cat photo-->
-  <div class="photogallery">
-  <h2>Photo Gallery</h2>
-  <div class="grid">
-    <img src="/lib/images/bartholomue.png" alt="bartholomue the great">
-    <img src="/lib/images/imAllEars.jpg" alt="i'm all ears looking ahh cat">
-    <img src="/lib/images/catThatProbWantsFood.jpg" alt="cat that definitely wants food">
-    <img src="/lib/images/bonk.jpg" alt="sneak attack">
-    <img src="/lib/images/cat.png" alt="cat">
-    <img src="/lib/images/cokecat.png" alt="coke cat">
-    <img src="/lib/images/ohlawdhecoming.jpg" alt="chonky">
-    <img src="/lib/images/protein.png" alt="protein shake">
-    <img src="/lib/images/goob.jpeg" alt="goob">
+    <!--cat photo-->
+    <div class="photogallery">
+    <h2>Photo Gallery</h2>
+    <div class="grid">
+      <img src="/lib/images/bartholomue.png" alt="bartholomue the great">
+      <img src="/lib/images/imAllEars.jpg" alt="i'm all ears looking ahh cat">
+      <img src="/lib/images/catThatProbWantsFood.jpg" alt="cat that definitely wants food">
+      <img src="/lib/images/bonk.jpg" alt="sneak attack">
+      <img src="/lib/images/cat.png" alt="cat">
+      <img src="/lib/images/cokecat.png" alt="coke cat">
+      <img src="/lib/images/ohlawdhecoming.jpg" alt="chonky">
+      <img src="/lib/images/protein.png" alt="protein shake">
+      <img src="/lib/images/goob.jpeg" alt="goob">
+    </div>
+    <p>cat</p>
   </div>
-  <p>cat</p>
-</div>
-</main>
-{:else}
-<main>
-  <!--checks for loaded state-->
-  <div class="spinner-container">
-    <div class="spinner"></div>
-    <h2>Loading...</h2>
-  </div>
-</main>
-{/if}
+  </main>
+  {:else}
+  <main>
+    <!--checks for loaded state-->
+    <div class="spinner-container">
+      <div class="spinner"></div>
+      <h2>Loading...</h2>
+    </div>
+  </main>
+  {/if}
 
-<style>
-  /*stylesheets are fairly self-explanatory*/
-  .warningLabel {
-    color: red;
-    font-weight: bold;
+  <style>
+    /*stylesheets are fairly self-explanatory*/
+    .warningLabel {
+      color: red;
+      font-weight: bold;
+    }
+    .resetbutton {
+      background-color: red;
+      color: white;
+      font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+      border: none;
+      border-radius: 25px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .photogallery {
+    width: 80%;
+    margin: 0 auto;
+    text-align: center;
   }
-  .resetbutton {
-    background-color: red;
-    color: white;
-    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-    border: none;
-    border-radius: 25px;
-    padding: 10px 20px;
-    cursor: pointer;
-    transition: background-color 0.3s;
+
+  .grid {
+    column-count: 3;
+    column-gap: 15px;
   }
-  .photogallery {
-  width: 80%;
-  margin: 0 auto;
-  text-align: center;
-}
 
-.grid {
-  column-count: 3;
-  column-gap: 15px;
-}
-
-.grid img {
-  width: 100%;
-  margin-bottom: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  break-inside: avoid;
-}
-  .save-popup {
-    position: fixed;
-    top: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 12px 24px;
+  .grid img {
+    width: 100%;
+    margin-bottom: 15px;
     border-radius: 8px;
-    font-size: 1.1em;
-    z-index: 1000;
-    background: #222;
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    opacity: 0.95;
-    transition: opacity 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    break-inside: avoid;
   }
-  .save-popup.success {
-    background: #2e7d32;
-    color: #fff;
+    .save-popup {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1.1em;
+      z-index: 1000;
+      background: #222;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      opacity: 0.95;
+      transition: opacity 0.3s;
+    }
+    .save-popup.success {
+      background: #2e7d32;
+      color: #fff;
+    }
+    .save-popup.error {
+      background: #c62828;
+      color: #fff;
+    }
+    .spinner-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 40vh;
+    }
+    .spinner {
+    color: #ffffff;
+    font-size: 45px;
+    text-indent: -9999em;
+    overflow: hidden;
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    position: relative;
+    transform: translateZ(0);
+    animation: mltShdSpin 1.7s infinite ease, round 1.7s infinite ease;
   }
-  .save-popup.error {
-    background: #c62828;
-    color: #fff;
-  }
-  .spinner-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 40vh;
-  }
-  .spinner {
-  color: #ffffff;
-  font-size: 45px;
-  text-indent: -9999em;
-  overflow: hidden;
-  width: 1em;
-  height: 1em;
-  border-radius: 50%;
-  position: relative;
-  transform: translateZ(0);
-  animation: mltShdSpin 1.7s infinite ease, round 1.7s infinite ease;
-}
 
-@keyframes mltShdSpin {
-  0% {
-    box-shadow: 0 -0.83em 0 -0.4em,
-    0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em,
-    0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
+  @keyframes mltShdSpin {
+    0% {
+      box-shadow: 0 -0.83em 0 -0.4em,
+      0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em,
+      0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
+    }
+    5%,
+    95% {
+      box-shadow: 0 -0.83em 0 -0.4em, 
+      0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em, 
+      0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
+    }
+    10%,
+    59% {
+      box-shadow: 0 -0.83em 0 -0.4em, 
+      -0.087em -0.825em 0 -0.42em, -0.173em -0.812em 0 -0.44em, 
+      -0.256em -0.789em 0 -0.46em, -0.297em -0.775em 0 -0.477em;
+    }
+    20% {
+      box-shadow: 0 -0.83em 0 -0.4em, -0.338em -0.758em 0 -0.42em,
+      -0.555em -0.617em 0 -0.44em, -0.671em -0.488em 0 -0.46em, 
+      -0.749em -0.34em 0 -0.477em;
+    }
+    38% {
+      box-shadow: 0 -0.83em 0 -0.4em, -0.377em -0.74em 0 -0.42em,
+      -0.645em -0.522em 0 -0.44em, -0.775em -0.297em 0 -0.46em, 
+      -0.82em -0.09em 0 -0.477em;
+    }
+    100% {
+      box-shadow: 0 -0.83em 0 -0.4em, 0 -0.83em 0 -0.42em, 
+      0 -0.83em 0 -0.44em, 0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
+    }
   }
-  5%,
-  95% {
-    box-shadow: 0 -0.83em 0 -0.4em, 
-    0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em, 
-    0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
-  }
-  10%,
-  59% {
-    box-shadow: 0 -0.83em 0 -0.4em, 
-    -0.087em -0.825em 0 -0.42em, -0.173em -0.812em 0 -0.44em, 
-    -0.256em -0.789em 0 -0.46em, -0.297em -0.775em 0 -0.477em;
-  }
-  20% {
-    box-shadow: 0 -0.83em 0 -0.4em, -0.338em -0.758em 0 -0.42em,
-     -0.555em -0.617em 0 -0.44em, -0.671em -0.488em 0 -0.46em, 
-     -0.749em -0.34em 0 -0.477em;
-  }
-  38% {
-    box-shadow: 0 -0.83em 0 -0.4em, -0.377em -0.74em 0 -0.42em,
-     -0.645em -0.522em 0 -0.44em, -0.775em -0.297em 0 -0.46em, 
-     -0.82em -0.09em 0 -0.477em;
-  }
-  100% {
-    box-shadow: 0 -0.83em 0 -0.4em, 0 -0.83em 0 -0.42em, 
-    0 -0.83em 0 -0.44em, 0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
-  }
-}
 
-@keyframes round {
-  0% { transform: rotate(0deg) }
-  100% { transform: rotate(360deg) }
-}
- 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+  @keyframes round {
+    0% { transform: rotate(0deg) }
+    100% { transform: rotate(360deg) }
   }
-</style>
+  
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
