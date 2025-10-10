@@ -1,4 +1,8 @@
-  <script>
+<!--Barth Site source code
+Please refrain from tampering with anything here while attempting to use the site properly
+Documentation can be found at least somewhat in the comments
+Leave any error reports or feature suggestions in the issues page on GitHub-->
+<script>
     import { onMount, onDestroy } from 'svelte';
 
     // variable declarations
