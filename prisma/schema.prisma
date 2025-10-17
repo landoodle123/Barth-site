@@ -25,6 +25,8 @@ model GameState {
   multiplierCost        BigInt   @default(150) @db.BigInt
   clickerMultiplierCost BigInt   @default(1000) @db.BigInt
   clickerGain           BigInt   @default(1) @db.BigInt
+  offlineClickerCount   BigInt   @default(0) @db.BigInt    // added for client offline clickers
+  offlineClickerCost    BigInt   @default(500) @db.BigInt  // added for client offline costs
   updatedAt             DateTime @updatedAt
   user                  User     @relation(fields: [userId], references: [id])
 }

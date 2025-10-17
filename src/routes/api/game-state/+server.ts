@@ -2,29 +2,39 @@ import { PrismaClient } from '@prisma/client';
 import { json, type RequestHandler } from '@sveltejs/kit';
 
 const prisma = new PrismaClient();
+const MAX_COUNT = 2_000_000_000; // cap to avoid DB/overflow issues
+const ANTICHEAT_JUMP = 500_000_000;
 
-// Utility to safely serialize BigInt values
-function serializeBigInts(obj: Record<string, any>) {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => [
-      key,
-      typeof value === 'bigint' ? value.toString() : value
-    ])
-  );
+// helper: clamp and convert to safe BigInt for Prisma
+function toSafeBigInt(v: unknown, def = 0): bigint {
+  const n = Number(v ?? def);
+  const clamped = Math.max(0, Math.min(MAX_COUNT, Math.floor(Number.isFinite(n) ? n : def)));
+  return BigInt(clamped);
 }
 
-// Age and jump checker
-function _checkAgeAndJump(prev, next, createdAt) {
-  const now = Date.now();
-  const created = new Date(createdAt).getTime();
-  const age = (now - created) / (1000 * 60 * 60 * 24);
-  const prevCount = Number(prev.count ?? 0);
-  const nextCount = Number(next.count ?? 0);
-  const jump = nextCount - prevCount;
-  return age < 1 && jump > 500_000_000;
+// helper: convert BigInt values (and nested) to JSON-friendly values
+function serializeBigInts(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(serializeBigInts);
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (typeof v === 'bigint') out[k] = v.toString();
+    else if (v instanceof Date) out[k] = v.toISOString();
+    else if (v && typeof v === 'object') out[k] = serializeBigInts(v);
+    else out[k] = v;
+  }
+  return out;
 }
 
-// GET handler to fetch game state
+// simple anticheat: block giant absolute counts or giant jumps
+function isAntiCheat(prev: any, nextCountNum: number) {
+  const prevNum = Number(prev?.count ?? 0);
+  const jump = nextCountNum - prevNum;
+  if (nextCountNum > MAX_COUNT) return true;
+  if (jump > ANTICHEAT_JUMP) return true;
+  return false;
+}
+
 export const GET: RequestHandler = async ({ locals }) => {
   try {
     const userId = locals.user?.id;
@@ -43,41 +53,52 @@ export const GET: RequestHandler = async ({ locals }) => {
   }
 };
 
-// POST handler to update game state
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     const userId = locals.user?.id;
     if (!userId) return json({ error: 'Not logged in' }, { status: 401 });
 
-    const data = await request.json();
-    const prev = await prisma.gameState.findUnique({ where: { userId } });
-    const user = await prisma.user.findUnique({ 
-      where: { id: userId },
-      select: { id: true, name: true, email: true, password: true }
-    });
+    const body = await request.json();
 
-    if (prev && prev.userId && prev.updatedAt && _checkAgeAndJump(prev, { count: data.count ?? 0 }, prev.updatedAt)) {
+    // normalize client-sent count to a Number for validation
+    const clientCountNum = Number(body?.count ?? 0);
+
+    const prev = await prisma.gameState.findUnique({ where: { userId } });
+
+    // anticheat check (absolute and jump)
+    if (prev && isAntiCheat(prev, clientCountNum)) {
+      // reset their state if cheating detected
       await prisma.gameState.update({
-      where: { userId },
-      data: {
-        count: 0,
-        amountGained: 1,
-        clickerCount: 0,
-        clickerCost: 100,
-        multiplierCost: 150,
-        clickerMultiplierCost: 1000,
-        clickerGain: 1
-      }
+        where: { userId },
+        data: {
+          count: BigInt(0),
+          amountGained: BigInt(1),
+          clickerCount: BigInt(0),
+          clickerCost: BigInt(100),
+          multiplierCost: BigInt(150),
+          clickerMultiplierCost: BigInt(1000),
+          clickerGain: BigInt(1)
+        }
       });
       return json({ error: 'anticheat' }, { status: 403 });
     }
 
-    await prisma.gameState.upsert({
-      where: { userId },
-      update: data,
-      create: { userId, ...data }
-    });
-
+    // prepare safe values for prisma (BigInt)
+    // prepare safe values for prisma (BigInt)
+        const safe = {
+          count: toSafeBigInt(body?.count ?? 0),
+          amountGained: toSafeBigInt(body?.amountGained ?? 1),
+          clickerCount: toSafeBigInt(body?.clickerCount ?? 0),
+          clickerCost: toSafeBigInt(body?.clickerCost ?? 100),
+          multiplierCost: toSafeBigInt(body?.multiplierCost ?? 150),
+          clickerMultiplierCost: toSafeBigInt(body?.clickerMultiplierCost ?? 1000),
+          clickerGain: toSafeBigInt(body?.clickerGain ?? 1)
+        };
+        await prisma.gameState.upsert({
+          where: { userId },
+          update: safe,
+          create: { userId, ...safe }
+        });
     return json({ success: true });
   } catch (err) {
     console.error('API error:', err);

@@ -3,290 +3,344 @@ Please refrain from tampering with anything here while attempting to use the sit
 Documentation can be found at least somewhat in the comments
 Leave any error reports or feature suggestions in the issues page on GitHub-->
 <script>
-    import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
 
-    // variable declarations
-    let count = 0;
-    let amountGained = 1;
-    let clickerCount = 0;
-    let clickerCost = 100;
-    let multiplierCost = 150;
-    let clickerMultiplierCost = 1000;
-    let clickerGain = 1;
-    let clickerIntervals = [];
-    let confirmReset = false;
-    let loaded = false;
-    let saveInterval;
-    let audio;
-    let audioWarningShown = false;
+  // Max safe value to avoid DB/BigInt issues
+  const MAX_COUNT = 2_000_000_000;
 
-    let saveMessage = '';
-    let saveMessageType = '';
-    let saveMessageTimeout;
+  // variable declarations
+  let count = 0;
+  let amountGained = 1;
+  let clickerCount = 0;
+  let clickerCost = 100;
+  let multiplierCost = 150;
+  let clickerMultiplierCost = 1000;
+  let clickerGain = 1;
+  let clickerInterval = null; // single interval for all clickers
+  let confirmReset = false;
+  let loaded = false;
+  let saveInterval;
+  let audio;
+  let audioWarningShown = false;
+  let offlineClickerCount = 0;
+  let offlineClickerCost = 500;
 
-    // AUTO_DETECT vars and consts
-    let clickTimestamps = [];
-    const WINDOW = 15;
-    const MS_INTVL = 90;
-    const MS_VARNC = 5;
+  let saveMessage = '';
+  let saveMessageType = '';
+  let saveMessageTimeout;
 
-    async function fetchState() {
-      // error-handled fetch function, checks gamestate and sets vars to vals pulled from db
-      try {
-        const res = await fetch('/api/game-state');
-        if (res.ok) {
-          const data = await res.json();
-          count = parseInt(data.count ?? "0");
-          amountGained = parseInt(data.amountGained ?? "1");
-          clickerCount = parseInt(data.clickerCount ?? "0");
-          clickerCost = parseInt(data.clickerCost ?? "100");
-          multiplierCost = parseInt(data.multiplierCost ?? "150");
-          clickerMultiplierCost = parseInt(data.clickerMultiplierCost ?? "1000");
-          clickerGain = parseInt(data.clickerGain ?? "1");
-        } else {
-          console.error('Failed to fetch game state', res.status);
-          if (res.status === 401) {
-            showSaveMessage('Not logged in, progress will not be saved', 'error');
-          } else {
-            showSaveMessage('Failed to load save data from server. Error: ' + res.status, 'error');
-          }
-        }
-      } catch (e) {
-        console.error('Error fetching game state:', e);
-        showSaveMessage('Error fetching game state. Error: ' + e.message, 'error');
-      }
-    }
+  // AUTO_DETECT vars and consts
+  let clickTimestamps = [];
+  const WINDOW = 15;
+  const MS_INTVL = 90;
+  const MS_VARNC = 5;
 
-    async function saveState() {
-      // error-handled save function, sends current gamestate to db
-      try {
-        const res = await fetch('/api/game-state', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            count,
-            amountGained,
-            clickerCount,
-            clickerCost,
-            multiplierCost,
-            clickerMultiplierCost,
-            clickerGain
-          })
-        });
+  function toNumber(v, def = 0) {
+    // handle strings (including BigInt serialized as string) and numbers
+    if (v === undefined || v === null) return def;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : def;
+  }
 
-        if (res.ok) {
-          showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
-        } else {
-          const data = await res.json();
-          // ac violation detection and quickreset
-          if (data.error === 'anticheat') {
-            showSaveMessage('Anticheat violation detected, progress reset.', 'error');
-            quickReset();
-          } else {
-            showSaveMessage('Save failed! Server error', 'error');
-          }
-        }
-      // check for network connection
-      } catch (e) {
-        showSaveMessage('Save failed! Disconnected from network', 'error');
-      }
-    }
-
-    // shows save message box on screen
-    function showSaveMessage(message, type) {
-      saveMessage = message;
-      saveMessageType = type;
-      clearTimeout(saveMessageTimeout);
-      saveMessageTimeout = setTimeout(() => {
-        saveMessage = '';
-        saveMessageType = '';
-      }, 3000);
-    }
-
-    // disables built-in clickers
-    function clearAllClickers() {
-      clickerIntervals.forEach(clearInterval);
-      clickerIntervals = [];
-    }
-
-    // enables built-in clickers
-    function startAllClickers() {
-      clearAllClickers();
-      for (let i = 0; i < clickerCount; i++) {
-        const interval = setInterval(() => {
-          count += clickerGain;
-        }, 1000);
-        clickerIntervals.push(interval);
-      }
-    }
-
-    // purchases a new clicker and increases the cost
-    function buyClicker() {
-      if (count >= clickerCost) {
-        count -= clickerCost;
-        clickerCount += 1;
-        clickerCost = Math.floor(clickerCost * 2.5);
+  async function fetchState() {
+    try {
+      const res = await fetch('/api/game-state');
+      if (res.ok) {
+        const data = await res.json();
+        // parse and clamp values to safe numbers
+        count = Math.min(MAX_COUNT, Math.max(0, toNumber(data.count, 0)));
+        amountGained = Math.max(1, toNumber(data.amountGained, 1));
+        clickerCount = Math.max(0, toNumber(data.clickerCount, 0));
+        clickerCost = Math.max(1, toNumber(data.clickerCost, 100));
+        multiplierCost = Math.max(1, toNumber(data.multiplierCost, 150));
+        clickerMultiplierCost = Math.max(1, toNumber(data.clickerMultiplierCost, 1000));
+        clickerGain = Math.max(1, toNumber(data.clickerGain, 1));
+        offlineClickerCount = Math.max(0, toNumber(data.offlineClickerCount ?? 0, 0));
+        offlineClickerCost = Math.max(1, toNumber(data.offlineClickerCost ?? 500, 500));
         startAllClickers();
-      }
-    }
-
-    // purchases a new multiplier and increases the cost
-    function buyMultiplier() {
-      if (count >= multiplierCost) {
-        count -= multiplierCost;
-        amountGained *= 2;
-        multiplierCost = Math.floor(multiplierCost * 3);
-      }
-    }
-
-    // purchases a new clickerMultiplier and increases the cost
-    // TODO: Balance a tad more, maybe change gain or costs
-    function buyClickerMultiplier() {
-      if (count >= clickerMultiplierCost) {
-        count -= clickerMultiplierCost;
-        clickerGain *= 2;
-        clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
-        startAllClickers();
-      }
-    }
-
-    // intentionally obfuscated function
-    function AUTO_DETECTOR() {
-      if (clickTimestamps.length < WINDOW) return false;
-      let intervals = [];
-      for (let i = 1; i < clickTimestamps.length; i++) {
-        intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
-      }
-      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-      const variance = intervals.reduce((a, b) => a + Math.abs(b - avg), 0) / intervals.length;
-      return avg < MS_INTVL && variance < MS_VARNC;
-    }
-
-    // adds a click * multiplier count to the val "count" and runs AUTO_DETECTOR() while playing audio
-    function incrementCount() {
-      // check for click timestamps
-      const now = Date.now();
-      clickTimestamps = [...clickTimestamps, now];
-      if (clickTimestamps.length > WINDOW) {
-        clickTimestamps = clickTimestamps.slice(-WINDOW);
-      }
-      // run AUTO_DETECTOR()
-      if (AUTO_DETECTOR()) {
-        alert("Autoclicker detected! Progress reset.");
-        quickReset();
-        clickTimestamps = [];
-        return;
-      }
-      // add count
-      count += amountGained;
-      //run audio playback
-      try {
-        audio?.play();
-      } catch (e) {
-        console.warn('Audio play failed:', e);
-        if (!audioWarningShown) {
-          showSaveMessage('Audio playback failed', 'error');
-          audioWarningShown = true;
-        }
-      }
-    }
-
-    // reset confirmation
-    function reset() {
-      if (confirmReset) {
-        quickReset();
       } else {
-        confirmReset = true;
-        setTimeout(() => (confirmReset = false), 3000);
+        console.error('Failed to fetch game state', res.status);
+        if (res.status === 401) {
+          showSaveMessage('Not logged in, progress will not be saved', 'error');
+        } else {
+          showSaveMessage('Failed to load save data from server. Error: ' + res.status, 'error');
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching game state:', e);
+      showSaveMessage('Error fetching game state. Error: ' + (e?.message ?? e), 'error');
+    }
+  }
+
+  async function saveState() {
+    try {
+      // ensure numeric values and cap to avoid DB errors
+      const payload = {
+        count: Math.min(MAX_COUNT, Math.max(0, Math.floor(Number(count || 0)))),
+        amountGained: Math.max(1, Math.floor(Number(amountGained || 1))),
+        clickerCount: Math.max(0, Math.floor(Number(clickerCount || 0))),
+        clickerCost: Math.max(1, Math.floor(Number(clickerCost || 100))),
+        multiplierCost: Math.max(1, Math.floor(Number(multiplierCost || 150))),
+        clickerMultiplierCost: Math.max(1, Math.floor(Number(clickerMultiplierCost || 1000))),
+        clickerGain: Math.max(1, Math.floor(Number(clickerGain || 1))),
+        offlineClickerCount: Math.max(0, Math.floor(Number(offlineClickerCount || 0))),
+        offlineClickerCost: Math.max(1, Math.floor(Number(offlineClickerCost || 500)))
+      };
+
+      const res = await fetch('/api/game-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === 'anticheat') {
+          showSaveMessage('Anticheat violation detected, progress reset.', 'error');
+          quickReset();
+        } else {
+          showSaveMessage('Save failed! Server error', 'error');
+        }
+      }
+    } catch (e) {
+      showSaveMessage('Save failed! Disconnected from network', 'error');
+    }
+  }
+
+  // shows save message box on screen
+  function showSaveMessage(message, type) {
+    saveMessage = message;
+    saveMessageType = type;
+    clearTimeout(saveMessageTimeout);
+    saveMessageTimeout = setTimeout(() => {
+      saveMessage = '';
+      saveMessageType = '';
+    }, 3000);
+  }
+
+  // disables built-in clickers
+  function clearAllClickers() {
+    if (clickerInterval) {
+      clearInterval(clickerInterval);
+      clickerInterval = null;
+    }
+  }
+
+  // enables built-in clickers (single interval for efficiency)
+  function startAllClickers() {
+    clearAllClickers();
+    if (clickerCount > 0) {
+      clickerInterval = setInterval(() => {
+        // add clicks per second: clickerCount * clickerGain
+        count = Math.min(MAX_COUNT, count + clickerCount * clickerGain);
+      }, 1000);
+    }
+  }
+
+  // purchases a new clicker and increases the cost
+  function buyClicker() {
+    if (count >= clickerCost) {
+      count -= clickerCost;
+      clickerCount += 1;
+      clickerCost = Math.floor(clickerCost * 2.5);
+      startAllClickers();
+    }
+  }
+
+  // purchases a new multiplier and increases the cost
+  function buyMultiplier() {
+    if (count >= multiplierCost) {
+      count -= multiplierCost;
+      amountGained *= 2;
+      multiplierCost = Math.floor(multiplierCost * 3);
+    }
+  }
+
+  // purchases a new clickerMultiplier and increases the cost
+  function buyClickerMultiplier() {
+    if (count >= clickerMultiplierCost) {
+      count -= clickerMultiplierCost;
+      clickerGain *= 2;
+      clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
+      startAllClickers();
+    }
+  }
+
+  // offline clicker purchase
+  function buyOfflineClicker() {
+    if (count >= offlineClickerCost) {
+      count -= offlineClickerCost;
+      offlineClickerCount += 1;
+      offlineClickerCost = Math.floor(offlineClickerCost * 2.5);
+      showSaveMessage(`Bought offline clicker. You have ${offlineClickerCount}.`, 'success');
+    }
+  }
+
+  // run offline clickers between two timestamps (ms)
+  function runOfflineClicker(dateStartedMs, dateEndedMs) {
+    const secondsElapsed = Math.floor((dateEndedMs - dateStartedMs) / 1000);
+    if (secondsElapsed <= 0 || offlineClickerCount <= 0) return 0;
+    const incrementsPerClicker = Math.floor(secondsElapsed / 10); // 1 per 10s
+    const totalGained = incrementsPerClicker * offlineClickerCount * clickerGain;
+    if (totalGained > 0) {
+      count = Math.min(MAX_COUNT, count + totalGained);
+      showSaveMessage(`Offline clickers added ${totalGained} clicks!`, 'success');
+    }
+    return totalGained;
+  }
+
+  // intentionally obfuscated function
+  function AUTO_DETECTOR() {
+    if (clickTimestamps.length < WINDOW) return false;
+    let intervals = [];
+    for (let i = 1; i < clickTimestamps.length; i++) {
+      intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
+    }
+    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const variance = intervals.reduce((a, b) => a + Math.abs(b - avg), 0) / intervals.length;
+    return avg < MS_INTVL && variance < MS_VARNC;
+  }
+
+  // adds a click * multiplier count to the val "count" and runs AUTO_DETECTOR() while playing audio
+  function incrementCount() {
+    const now = Date.now();
+    clickTimestamps = [...clickTimestamps, now];
+    if (clickTimestamps.length > WINDOW) {
+      clickTimestamps = clickTimestamps.slice(-WINDOW);
+    }
+    if (AUTO_DETECTOR()) {
+      alert("Autoclicker detected! Progress reset.");
+      quickReset();
+      clickTimestamps = [];
+      return;
+    }
+    count = Math.min(MAX_COUNT, count + amountGained);
+    try {
+      audio?.play();
+    } catch (e) {
+      console.warn('Audio play failed:', e);
+      if (!audioWarningShown) {
+        showSaveMessage('Audio playback failed', 'error');
+        audioWarningShown = true;
       }
     }
+  }
 
-    // resets all vals, used in reset() and for ac violations
-    function quickReset() {
-      count = 0;
-      clickerCount = 0;
-      clickerCost = 100;
-      multiplierCost = 150;
-      clickerMultiplierCost = 1000;
-      clickerGain = 1;
-      amountGained = 1;
-      clearAllClickers();
-      confirmReset = false;
-      startAllClickers();
-      saveState();
+  // reset confirmation
+  function reset() {
+    if (confirmReset) {
+      quickReset();
+    } else {
+      confirmReset = true;
+      setTimeout(() => (confirmReset = false), 3000);
     }
+  }
 
-    // checks for enter key exploit
-    function handleKeydown(e) {
-      if (e.key === "Enter") {
-        alert("Enter key pressed! Progress reset.");
-        e.preventDefault();
-        e.stopPropagation();
-        quickReset();
+  // resets all vals, used in reset() and for ac violations
+  function quickReset() {
+    count = 0;
+    clickerCount = 0;
+    clickerCost = 100;
+    multiplierCost = 150;
+    clickerMultiplierCost = 1000;
+    clickerGain = 1;
+    amountGained = 1;
+    offlineClickerCount = 0;
+    offlineClickerCost = 500;
+    clearAllClickers();
+    confirmReset = false;
+    startAllClickers();
+    // ensure we save cleaned state (fire-and-forget)
+    saveState().catch(() => {});
+  }
+
+  // checks for enter key exploit
+  function handleKeydown(e) {
+    if (e.key === "Enter") {
+      alert("Enter key pressed! Progress reset.");
+      e.preventDefault();
+      e.stopPropagation();
+      quickReset();
+    }
+  }
+
+  // runs fetch functions and sets up audio, prepares autosave
+  onMount(async () => {
+    audio = new Audio('/lib/audios/meow.mp3');
+    await fetchState().catch((e) => console.error('Fetch failed:', e));
+    loaded = true;
+    saveInterval = setInterval(saveState, 60000);
+
+    // Offline clicker logic: apply offline gain based on offlineClickerCount
+    const lastClose = localStorage.getItem('barth_last_close');
+    if (lastClose) {
+      const lastMs = parseInt(lastClose, 10);
+      if (!Number.isNaN(lastMs)) {
+        const now = Date.now();
+        runOfflineClicker(lastMs, now);
+        // save after adding offline gains
+        saveState().catch(() => {});
       }
+      localStorage.removeItem('barth_last_close');
     }
+  });
 
-    // runs fetch functions and sets up audio, prepares autosave
-    onMount(async () => {
-      // Initialize audio on client
-      audio = new Audio('/lib/audios/meow.mp3');
+  // runs logic for when the site is closed
+  onDestroy(() => {
+    clearAllClickers();
+    if (saveInterval) clearInterval(saveInterval);
+    // Save the current time to localStorage when the site is closed
+    try {
+      localStorage.setItem('barth_last_close', Date.now().toString());
+    } catch (e) {
+      // ignore localStorage failures in private mode
+    }
+  });
+</script>
 
-      // Fetch state safely
-      await fetchState().catch((e) => console.error('Fetch failed:', e));
+{#if saveMessage}
+  <div class="save-popup {saveMessageType}">{saveMessage}</div>
+{/if}
 
-      startAllClickers();
-      loaded = true;
+{#if loaded}
+<main>
+  <h1>Welcome to the Great Realm of Bartholomue!</h1>
+  <h2>The best site ever</h2>
+  <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>
+    Pet Bartholomue ✋🐈
+  </button>
+  <p>Bartholomue has been petted {count} times.</p>
+  <p class="warningLabel">
+    Warning, pressing "enter" with the site focused *will* reset your progress.
+  </p>
 
-      saveInterval = setInterval(saveState, 60000);
-    });
+  <button class="resetbutton" on:click={reset}>
+    {confirmReset ? "Are you sure?" : "Reset"}
+  </button>
+  <button class="button" on:click={saveState}>Update</button>
 
-    // idk what this does tbh
-    onDestroy(() => {
-      clearAllClickers();
-      if (saveInterval) clearInterval(saveInterval);
-    });
-  </script>
+  <br><br>
 
+  <button class="button" on:click={buyClicker}>Add Clicker ({clickerCost} clicks)</button>
+  <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks/sec!</p>
 
-  {#if saveMessage}
-  <!--save message logic-->
-    <div class="save-popup {saveMessageType}">{saveMessage}</div>
-  {/if}
+  <br>
 
-  {#if loaded}
-  <main>
-    <!--main site markup-->
-    <h1>Welcome to the Great Realm of Bartholomue!</h1>
-    <h2>The best site ever</h2>
-    <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>
-      Pet Bartholomue ✋🐈
-    </button>
-    <p>Bartholomue has been petted {count} times.</p>
-    <p class="warningLabel">
-      Warning, pressing "enter" with the site focused *will* reset your progress.
-    </p>
+  <button class="button" on:click={buyMultiplier}>Add Multiplier ({multiplierCost} clicks)</button>
+  <p>Each click is multiplied by {amountGained}!</p>
 
-    <button class="resetbutton" on:click={reset}>
-      {confirmReset ? "Are you sure?" : "Reset"}
-    </button>
-    <button class="button" on:click={saveState}>Update</button>
+  <br>
 
-    <br><br>
+  <button class="button" on:click={buyClickerMultiplier}>Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
 
-    <button class="button" on:click={buyClicker}>Add Clicker ({clickerCost} clicks)</button>
-    <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks/sec!</p>
+  <br><br>
 
-    <br>
+  <button class="button" on:click={buyOfflineClicker}>Buy Offline Clicker ({offlineClickerCost} clicks)</button>
+  <p>You have {offlineClickerCount} offline clickers. They earn 1 click per 10s each while you're away.</p>
 
-    <button class="button" on:click={buyMultiplier}>Add Multiplier ({multiplierCost} clicks)</button>
-    <p>Each click is multiplied by {amountGained}!</p>
-
-    <br>
-
-    <button class="button" on:click={buyClickerMultiplier}>Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
-
-    <!--cat photo-->
-    <div class="photogallery">
+  <div class="photogallery">
     <h2>Photo Gallery</h2>
     <div class="grid">
       <img src="/lib/images/bartholomue.png" alt="bartholomue the great">
@@ -301,44 +355,41 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     </div>
     <p>cat</p>
   </div>
-  </main>
-  {:else}
-  <main>
-    <!--checks for loaded state-->
-    <div class="spinner-container">
-      <div class="spinner"></div>
-      <h2>Loading...</h2>
-    </div>
-  </main>
-  {/if}
+</main>
+{:else}
+<main>
+  <div class="spinner-container">
+    <div class="spinner"></div>
+    <h2>Loading...</h2>
+  </div>
+</main>
+{/if}
 
-  <style>
-    /*stylesheets are fairly self-explanatory*/
-    .warningLabel {
-      color: red;
-      font-weight: bold;
-    }
-    .resetbutton {
-      background-color: red;
-      color: white;
-      font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-      border: none;
-      border-radius: 25px;
-      padding: 10px 20px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    .photogallery {
+<style>
+  /*stylesheets are fairly self-explanatory*/
+  .warningLabel {
+    color: red;
+    font-weight: bold;
+  }
+  .resetbutton {
+    background-color: red;
+    color: white;
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    border: none;
+    border-radius: 25px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  .photogallery {
     width: 80%;
     margin: 0 auto;
     text-align: center;
   }
-
   .grid {
     column-count: 3;
     column-gap: 15px;
   }
-
   .grid img {
     width: 100%;
     margin-bottom: 15px;
@@ -346,37 +397,37 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     break-inside: avoid;
   }
-    .save-popup {
-      position: fixed;
-      top: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 1.1em;
-      z-index: 1000;
-      background: #222;
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      opacity: 0.95;
-      transition: opacity 0.3s;
-    }
-    .save-popup.success {
-      background: #2e7d32;
-      color: #fff;
-    }
-    .save-popup.error {
-      background: #c62828;
-      color: #fff;
-    }
-    .spinner-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 40vh;
-    }
-    .spinner {
+  .save-popup {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1.1em;
+    z-index: 1000;
+    background: #222;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    opacity: 0.95;
+    transition: opacity 0.3s;
+  }
+  .save-popup.success {
+    background: #2e7d32;
+    color: #fff;
+  }
+  .save-popup.error {
+    background: #c62828;
+    color: #fff;
+  }
+  .spinner-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 40vh;
+  }
+  .spinner {
     color: #ffffff;
     font-size: 45px;
     text-indent: -9999em;
@@ -388,7 +439,6 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     transform: translateZ(0);
     animation: mltShdSpin 1.7s infinite ease, round 1.7s infinite ease;
   }
-
   @keyframes mltShdSpin {
     0% {
       box-shadow: 0 -0.83em 0 -0.4em,
@@ -428,7 +478,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     100% { transform: rotate(360deg) }
   }
   
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
