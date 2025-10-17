@@ -5,14 +5,13 @@ const prisma = new PrismaClient();
 const MAX_COUNT = 2_000_000_000; // cap to avoid DB/overflow issues
 const ANTICHEAT_JUMP = 500_000_000;
 
-// helper: clamp and convert to safe BigInt for Prisma
+// clamp and convert to BigInt safely
 function toSafeBigInt(v: unknown, def = 0): bigint {
   const n = Number(v ?? def);
   const clamped = Math.max(0, Math.min(MAX_COUNT, Math.floor(Number.isFinite(n) ? n : def)));
   return BigInt(clamped);
 }
 
-// helper: convert BigInt values (and nested) to JSON-friendly values
 function serializeBigInts(obj: any): any {
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(serializeBigInts);
@@ -26,7 +25,6 @@ function serializeBigInts(obj: any): any {
   return out;
 }
 
-// simple anticheat: block giant absolute counts or giant jumps
 function isAntiCheat(prev: any, nextCountNum: number) {
   const prevNum = Number(prev?.count ?? 0);
   const jump = nextCountNum - prevNum;
@@ -60,46 +58,51 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     const body = await request.json();
 
-    // normalize client-sent count to a Number for validation
     const clientCountNum = Number(body?.count ?? 0);
-
     const prev = await prisma.gameState.findUnique({ where: { userId } });
 
-    // anticheat check (absolute and jump)
     if (prev && isAntiCheat(prev, clientCountNum)) {
-      // reset their state if cheating detected
+      // reset on anticheat
       await prisma.gameState.update({
         where: { userId },
         data: {
-          count: BigInt(0),
-          amountGained: BigInt(1),
-          clickerCount: BigInt(0),
-          clickerCost: BigInt(100),
-          multiplierCost: BigInt(150),
-          clickerMultiplierCost: BigInt(1000),
-          clickerGain: BigInt(1)
-        }
+            count: BigInt(0),
+            amountGained: BigInt(1),
+            clickerCount: BigInt(0),
+            clickerCost: BigInt(100),
+            multiplierCost: BigInt(150),
+            clickerMultiplierCost: BigInt(1000),
+            clickerGain: BigInt(1),
+            // clear offline fields if present in schema
+            ...(prev && Object.prototype.hasOwnProperty.call(prev, 'offlineClickerCount') ? { offlineClickerCount: BigInt(0) } : {}),
+            ...(prev && Object.prototype.hasOwnProperty.call(prev, 'offlineClickerCost') ? { offlineClickerCost: BigInt(500) } : {})
+          }
       });
       return json({ error: 'anticheat' }, { status: 403 });
     }
 
-    // prepare safe values for prisma (BigInt)
-    // prepare safe values for prisma (BigInt)
-        const safe = {
-          count: toSafeBigInt(body?.count ?? 0),
-          amountGained: toSafeBigInt(body?.amountGained ?? 1),
-          clickerCount: toSafeBigInt(body?.clickerCount ?? 0),
-          clickerCost: toSafeBigInt(body?.clickerCost ?? 100),
-          multiplierCost: toSafeBigInt(body?.multiplierCost ?? 150),
-          clickerMultiplierCost: toSafeBigInt(body?.clickerMultiplierCost ?? 1000),
-          clickerGain: toSafeBigInt(body?.clickerGain ?? 1)
-        };
-        await prisma.gameState.upsert({
-          where: { userId },
-          update: safe,
-          create: { userId, ...safe }
-        });
-    return json({ success: true });
+    const safe = {
+      count: toSafeBigInt(body?.count ?? 0),
+      amountGained: toSafeBigInt(body?.amountGained ?? 1),
+      clickerCount: toSafeBigInt(body?.clickerCount ?? 0),
+      clickerCost: toSafeBigInt(body?.clickerCost ?? 100),
+      multiplierCost: toSafeBigInt(body?.multiplierCost ?? 150),
+      clickerMultiplierCost: toSafeBigInt(body?.clickerMultiplierCost ?? 1000),
+      clickerGain: toSafeBigInt(body?.clickerGain ?? 1),
+      // include offline fields if client sent them
+      ...(body?.offlineClickerCount !== undefined ? { offlineClickerCount: toSafeBigInt(body.offlineClickerCount) } : {}),
+      ...(body?.offlineClickerCost !== undefined ? { offlineClickerCost: toSafeBigInt(body.offlineClickerCost) } : {})
+    };
+
+    await prisma.gameState.upsert({
+      where: { userId },
+      update: safe,
+      create: { userId, ...safe }
+    });
+
+    // return authoritative saved state so client can update UI
+    const saved = await prisma.gameState.findUnique({ where: { userId } });
+    return json(serializeBigInts(saved));
   } catch (err) {
     console.error('API error:', err);
     return json({ error: 'Internal server error' }, { status: 500 });
