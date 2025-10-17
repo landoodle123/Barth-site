@@ -95,6 +95,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
 
       if (res.ok) {
         showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
+        return true;
       } else {
         const data = await res.json().catch(() => ({}));
         if (data.error === 'anticheat') {
@@ -103,9 +104,11 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
         } else {
           showSaveMessage('Save failed! Server error', 'error');
         }
+        return false;
       }
     } catch (e) {
       showSaveMessage('Save failed! Disconnected from network', 'error');
+      return false;
     }
   }
 
@@ -169,12 +172,27 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
   }
 
   // offline clicker purchase
-  function buyOfflineClicker() {
+  async function buyOfflineClicker() {
     if (count >= offlineClickerCost) {
+      // optimistic update
+      const oldCount = count;
+      const oldOfflineCount = offlineClickerCount;
       count -= offlineClickerCost;
       offlineClickerCount += 1;
       offlineClickerCost = Math.floor(offlineClickerCost * 2.5);
       showSaveMessage(`Bought offline clicker. You have ${offlineClickerCount}.`, 'success');
+
+      // immediate save; revert if save fails
+      const ok = await saveState();
+      if (!ok) {
+        // revert optimistic changes
+        count = oldCount;
+        offlineClickerCount = oldOfflineCount;
+        offlineClickerCost = Math.max(1, Math.floor(offlineClickerCost / 2.5));
+        showSaveMessage('Purchase failed to persist. Reverted.', 'error');
+      }
+    } else {
+      showSaveMessage('Not enough clicks to buy offline clicker.', 'error');
     }
   }
 
