@@ -307,6 +307,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
       const lastMs = parseInt(lastClose, 10);
       if (!Number.isNaN(lastMs)) {
         const now = Date.now();
+        console.info("Preparing to run offlineClicker")
         const offlineClickerGains = await runOfflineClicker(lastMs, now);
         if (Number.isNaN(offlineClickerGains)) {
           throw new Error('Invalid offline clicker gains');
