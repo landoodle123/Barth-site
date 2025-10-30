@@ -296,7 +296,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     saveInterval = setInterval(saveState, 60000);
 
     // Offline clicker logic: apply offline gain based on offlineClickerCount
-    const lastClose = localStorage.getItem('barth_last_close');
+    try {const lastClose = localStorage.getItem('barth_last_close');
     if (lastClose) {
       const lastMs = parseInt(lastClose, 10);
       if (!Number.isNaN(lastMs)) {
@@ -308,6 +308,10 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
       }
       localStorage.removeItem('barth_last_close');
     }
+  } catch (e) {
+    console.error('Error during offline clicker initialization:', e);
+    showSaveMessage('An unexpected error has occurred with offline clicker logic.', 'error');
+  }
   });
 
   // runs logic for when the site is closed
