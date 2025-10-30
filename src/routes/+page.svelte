@@ -333,7 +333,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     try {
       localStorage.setItem('barth_last_close', Date.now().toString());
     } catch (e) {
-      // ignore localStorage failures in private mode
+      console.error("Error saving last close time to localStorage:", e);
     }
   });
 </script>
