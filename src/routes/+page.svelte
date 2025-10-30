@@ -72,7 +72,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     }
   }
 
-  async function saveState() {
+  async function saveState(showMessage) {
     try {
       localStorage.setItem('barth_last_close', Date.now().toString());
     } catch (e) {
@@ -99,7 +99,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
       });
 
       if (res.ok) {
-        showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
+        if (showMessage = true) {showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');}
         return true;
       } else {
         const data = await res.json().catch(() => ({}));
@@ -189,7 +189,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
       showSaveMessage(`Bought offline clicker. You have ${offlineClickerCount}.`, 'success');
 
       // immediate save; revert if save fails
-      const ok = await saveState();
+      const ok = await saveState(true);
       if (!ok) {
         // revert optimistic changes
         count = oldCount;
@@ -284,7 +284,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     confirmReset = false;
     startAllClickers();
     // ensure we save cleaned state (fire-and-forget)
-    saveState().catch(() => {});
+    saveState(true).catch(() => {});
   }
 
   // checks for enter key exploit
@@ -303,7 +303,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     audio = new Audio('/lib/audios/meow.mp3');
     await fetchState().catch((e) => console.error('Fetch failed:', e));
     loaded = true;
-    saveInterval = setInterval(saveState, 60000);
+    saveInterval = setInterval(saveState(true), 60000);
 
     // Offline clicker logic: apply offline gain based on offlineClickerCount
     const lastClose = localStorage.getItem('barth_last_close');
@@ -320,7 +320,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
         }
         count = Math.min(MAX_COUNT, count + offlineClickerGains);
         // save after adding offline gains
-        saveState().catch(() => {});
+        saveState(false).catch(() => {});
       }
       localStorage.removeItem('barth_last_close');
     }
@@ -357,7 +357,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
   <button class="resetbutton" on:click={reset}>
     {confirmReset ? "Are you sure?" : "Reset"}
   </button>
-  <button class="button" on:click={saveState}>Update</button>
+  <button class="button" on:click={saveState(true)}>Update</button>
 
   <br><br>
 
