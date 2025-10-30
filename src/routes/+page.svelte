@@ -198,7 +198,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
 
   // run offline clickers between two timestamps (ms)
   function runOfflineClicker(dateStartedMs, dateEndedMs) {
-    const secondsElapsed = Math.floor((dateEndedMs - dateStartedMs) / 1000);
+    try {const secondsElapsed = Math.floor((dateEndedMs - dateStartedMs) / 1000);
     if (secondsElapsed <= 0 || offlineClickerCount <= 0) return 0;
     const incrementsPerClicker = Math.floor(secondsElapsed / 10); // 1 per 10s
     const totalGained = incrementsPerClicker * offlineClickerCount * clickerGain;
@@ -206,6 +206,11 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
       showSaveMessage(`Offline clickers added ${totalGained} clicks!`, 'success');
     }
     return totalGained;
+  } catch (e) {
+    console.error('Error running offline clicker:', e);
+    showSaveMessage('An unexpected error has occurred with offline clicker logic.', 'error');
+    return 0;
+  }
   }
 
   // intentionally obfuscated function
