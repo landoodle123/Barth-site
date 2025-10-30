@@ -302,7 +302,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     // Offline clicker logic: apply offline gain based on offlineClickerCount
     const lastClose = localStorage.getItem('barth_last_close');
     try {
-
+    console.log("lastClose from localStorage:", lastClose);
     if (lastClose) {
       const lastMs = parseInt(lastClose, 10);
       if (!Number.isNaN(lastMs)) {
