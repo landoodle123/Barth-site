@@ -293,6 +293,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
 
   // runs fetch functions and sets up audio, prepares autosave
   onMount(async () => {
+    console.info("onMount beginning");
     audio = new Audio('/lib/audios/meow.mp3');
     await fetchState().catch((e) => console.error('Fetch failed:', e));
     loaded = true;
@@ -320,6 +321,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     console.error('Error during offline clicker initialization:', e);
     showSaveMessage('An unexpected error has occurred with offline clicker logic.', 'error');
   }
+  console.info("onMount completed successfully");
   });
 
   // runs logic for when the site is closed
