@@ -74,6 +74,11 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
 
   async function saveState() {
     try {
+      localStorage.setItem('barth_last_close', Date.now().toString());
+    } catch (e) {
+      console.error("Error saving last close time to localStorage:", e);
+    }
+    try {
       // ensure numeric values and cap to avoid DB errors
       const payload = {
         count: Math.min(MAX_COUNT, Math.max(0, Math.floor(Number(count || 0)))),
@@ -110,6 +115,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
       showSaveMessage('Save failed! Disconnected from network', 'error');
       return false;
     }
+    
   }
 
   // shows save message box on screen
@@ -329,12 +335,6 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
   onDestroy(() => {
     clearAllClickers();
     if (saveInterval) clearInterval(saveInterval);
-    // Save the current time to localStorage when the site is closed
-    try {
-      localStorage.setItem('barth_last_close', Date.now().toString());
-    } catch (e) {
-      console.error("Error saving last close time to localStorage:", e);
-    }
   });
 </script>
 
