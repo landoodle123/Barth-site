@@ -8,25 +8,25 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String     @id @default(cuid())
+  email     String     @unique
   name      String?
   password  String
+  createdAt DateTime   @default(now())
   gameState GameState?
-  createdAt DateTime @default(now())
 }
 
 model GameState {
   userId                String   @id
-  count                 BigInt   @default(0) @db.BigInt
-  amountGained          BigInt   @default(1) @db.BigInt
-  clickerCount          BigInt   @default(0) @db.BigInt
-  clickerCost           BigInt   @default(100) @db.BigInt
-  multiplierCost        BigInt   @default(150) @db.BigInt
-  clickerMultiplierCost BigInt   @default(1000) @db.BigInt
-  clickerGain           BigInt   @default(1) @db.BigInt
-  offlineClickerCount   BigInt   @default(0) @db.BigInt    // added for client offline clickers
-  offlineClickerCost    BigInt   @default(500) @db.BigInt  // added for client offline costs
+  count                 BigInt   @default(0)
+  amountGained          BigInt   @default(1)
+  clickerCount          BigInt   @default(0)
+  clickerCost           BigInt   @default(100)
+  multiplierCost        BigInt   @default(150)
+  clickerMultiplierCost BigInt   @default(1000)
+  clickerGain           BigInt   @default(1)
   updatedAt             DateTime @updatedAt
+  offlineClickerCost    BigInt   @default(500)
+  offlineClickerCount   BigInt   @default(0)
   user                  User     @relation(fields: [userId], references: [id])
 }
