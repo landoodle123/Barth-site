@@ -73,9 +73,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             multiplierCost: BigInt(150),
             clickerMultiplierCost: BigInt(1000),
             clickerGain: BigInt(1),
-            // clear offline fields if present in schema
-            ...(prev && Object.prototype.hasOwnProperty.call(prev, 'offlineClickerCount') ? { offlineClickerCount: BigInt(0) } : {}),
-            ...(prev && Object.prototype.hasOwnProperty.call(prev, 'offlineClickerCost') ? { offlineClickerCost: BigInt(500) } : {})
+            offlineClickerCount: BigInt(0),
+            offlineClickerCost: BigInt(500)
           }
       });
       return json({ error: 'anticheat' }, { status: 403 });

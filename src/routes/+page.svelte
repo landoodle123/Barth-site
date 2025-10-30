@@ -203,7 +203,6 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     const incrementsPerClicker = Math.floor(secondsElapsed / 10); // 1 per 10s
     const totalGained = incrementsPerClicker * offlineClickerCount * clickerGain;
     if (totalGained > 0) {
-      count = Math.min(MAX_COUNT, count + totalGained);
       showSaveMessage(`Offline clickers added ${totalGained} clicks!`, 'success');
     }
     return totalGained;
@@ -297,7 +296,8 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
       const lastMs = parseInt(lastClose, 10);
       if (!Number.isNaN(lastMs)) {
         const now = Date.now();
-        runOfflineClicker(lastMs, now);
+        const offlineClickerGains = runOfflineClicker(lastMs, now);
+        count = Math.min(MAX_COUNT, count + offlineClickerGains);
         // save after adding offline gains
         saveState().catch(() => {});
       }
