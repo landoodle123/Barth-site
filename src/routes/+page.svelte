@@ -318,7 +318,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
         if (offlineClickerGains == null || offlineClickerGains === undefined || isNaN(offlineClickerGains)) {
           throw new Error('Invalid offline clicker gains');
         }
-        count = Math.min(MAX_COUNT, count + offlineClickerGains);
+        count = count + offlineClickerGains;
         // save after adding offline gains
         saveState(false).catch(() => {});
       }
