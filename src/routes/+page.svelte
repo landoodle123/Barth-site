@@ -306,7 +306,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     saveInterval = setInterval(saveState(true), 60000);
 
     // Offline clicker logic: apply offline gain based on offlineClickerCount
-    const lastClose = localStorage.getItem('barth_last_close');
+    const lastClose = parseInt(localStorage.getItem('barth_last_close'));
     try {
     console.log("lastClose from localStorage:", lastClose);
     if (lastClose) {
