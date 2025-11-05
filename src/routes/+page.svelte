@@ -99,7 +99,9 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
       });
 
       if (res.ok) {
-        if (showMessage = true) {showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');}
+        if (showMessage === true) {
+          showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
+        }
         return true;
       } else {
         const data = await res.json().catch(() => ({}));
@@ -361,7 +363,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
   <button class="resetbutton" on:click={reset}>
     {confirmReset ? "Are you sure?" : "Reset"}
   </button>
-  <button class="button" on:click={saveState(true)}>Update</button>
+  <button class="button" on:click={() => saveState(true)}>Update</button>
 
   <br><br>
 
