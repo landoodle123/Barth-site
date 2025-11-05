@@ -74,7 +74,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
 
   async function saveState(showMessage) {
     try {
-      localStorage.setItem('barth_last_close', Date.now().toString());
+      localStorage.setItem('barth_last_close', Date.now().toNumber());
     } catch (e) {
       console.error("Error saving last close time to localStorage:", e);
     }
