@@ -318,7 +318,10 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
         if (offlineClickerGains == null || offlineClickerGains === undefined || isNaN(offlineClickerGains)) {
           throw new Error('Invalid offline clicker gains');
         }
+        let count_old = count;
         count = count + offlineClickerGains;
+        console.info("Offline clicker gains applied:", offlineClickerGains);
+        console.info("Old count:", count_old, "New count:", count);
         // save after adding offline gains
         saveState(false).catch(() => {});
       }
