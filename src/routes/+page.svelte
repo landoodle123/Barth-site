@@ -315,7 +315,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
         const now = Date.now();
         console.info("Preparing to run offlineClicker")
         const offlineClickerGains = await runOfflineClicker(lastMs, now);
-        if (Number.isNaN(offlineClickerGains)) {
+        if (Number.isNaN(offlineClickerGains) || offlineClickerGains == undefined) {
           throw new Error('Invalid offline clicker gains');
         }
         count = Math.min(MAX_COUNT, count + offlineClickerGains);
