@@ -43,34 +43,72 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
   }
 
   async function fetchState() {
-    try {
-      const res = await fetch('/api/game-state');
-      if (res.ok) {
-        const data = await res.json();
-        // parse and clamp values to safe numbers
-        count = Math.min(MAX_COUNT, Math.max(0, toNumber(data.count, 0)));
-        amountGained = Math.max(1, toNumber(data.amountGained, 1));
-        clickerCount = Math.max(0, toNumber(data.clickerCount, 0));
-        clickerCost = Math.max(1, toNumber(data.clickerCost, 100));
-        multiplierCost = Math.max(1, toNumber(data.multiplierCost, 150));
-        clickerMultiplierCost = Math.max(1, toNumber(data.clickerMultiplierCost, 1000));
-        clickerGain = Math.max(1, toNumber(data.clickerGain, 1));
-        offlineClickerCount = Math.max(0, toNumber(data.offlineClickerCount ?? 0, 0));
-        offlineClickerCost = Math.max(1, toNumber(data.offlineClickerCost ?? 500, 500));
-        startAllClickers();
+  try {
+    const res = await fetch('/api/game-state');
+    if (!res.ok) {
+      console.error('Failed to fetch game state', res.status);
+      if (res.status === 401) {
+        showSaveMessage('Not logged in, progress will not be saved', 'error');
       } else {
-        console.error('Failed to fetch game state', res.status);
-        if (res.status === 401) {
-          showSaveMessage('Not logged in, progress will not be saved', 'error');
-        } else {
-          showSaveMessage('Failed to load save data from server. Error: ' + res.status, 'error');
-        }
+        showSaveMessage('Failed to load save data from server. Error: ' + res.status, 'error');
       }
-    } catch (e) {
-      console.error('Error fetching game state:', e);
-      showSaveMessage('Error fetching game state. Error: ' + (e?.message ?? e), 'error');
+      return;
     }
+
+    const data = await res.json();
+
+    // Parse and clamp values
+    count = Math.min(MAX_COUNT, Math.max(0, toNumber(data.count, 0)));
+    amountGained = Math.max(1, toNumber(data.amountGained, 1));
+    clickerCount = Math.max(0, toNumber(data.clickerCount, 0));
+    clickerCost = Math.max(1, toNumber(data.clickerCost, 100));
+    multiplierCost = Math.max(1, toNumber(data.multiplierCost, 150));
+    clickerMultiplierCost = Math.max(1, toNumber(data.clickerMultiplierCost, 1000));
+    clickerGain = Math.max(1, toNumber(data.clickerGain, 1));
+    offlineClickerCount = Math.max(0, toNumber(data.offlineClickerCount ?? 0, 0));
+    offlineClickerCost = Math.max(1, toNumber(data.offlineClickerCost ?? 500, 500));
+
+    startAllClickers();
+
+    // Offline clicker logic
+    const lastCloseStr = localStorage.getItem('barth_last_close');
+    const lastClose = parseInt(lastCloseStr, 10);
+
+    console.info("Offline clickers about to begin");
+    console.info("Last close time:", lastClose);
+    if (isNaN(lastClose)) {
+      console.error("Last close time is NaN");
+    }
+    if (Number.isFinite(lastClose) && lastClose > 0) {
+      try {
+        const now = Date.now();
+        console.info("Preparing to run offlineClicker");
+        
+        const offlineClickerGains = runOfflineClicker(lastClose, now);
+        if (!Number.isFinite(offlineClickerGains)) {
+          throw new Error('Invalid offline clicker gains');
+        }
+
+        const countOld = count;
+        count += offlineClickerGains;
+
+        console.info("Offline clicker gains applied:", offlineClickerGains);
+        console.info("Old count:", countOld, "New count:", count);
+
+        await saveState(false).catch((e) => console.error('Save after offline gain failed:', e));
+      } catch (e) {
+        console.error('Error during offline clicker logic:', e);
+        showSaveMessage('An error occurred with offline clicker logic.', 'error');
+      }
+
+      localStorage.removeItem('barth_last_close');
+    }
+
+  } catch (e) {
+    console.error('Error fetching game state:', e);
+    showSaveMessage('Error fetching game state. Error: ' + (e?.message ?? e), 'error');
   }
+}
 
   async function saveState(showMessage) {
     try {
@@ -206,23 +244,52 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
 
   // run offline clickers between two timestamps (ms)
   function runOfflineClicker(dateStartedMs, dateEndedMs) {
-    console.info("runOfflineClicker beginning");
-    try {
-      const secondsElapsed = Math.floor((dateEndedMs - dateStartedMs) / 1000);
-      if (secondsElapsed <= 0 || offlineClickerCount <= 0) return 0;
-      const incrementsPerClicker = Math.floor(secondsElapsed / 10); // 1 per 10s
-      const totalGained = incrementsPerClicker * offlineClickerCount * clickerGain;
-      if (totalGained > 0) {
-      showSaveMessage(`Offline clickers added ${totalGained} clicks!`, 'success');
-    }
-    console.info("runOfflineClicker completed successfully");
-    return totalGained;
-  } catch (e) {
-    console.error('Error running offline clicker:', e);
-    showSaveMessage('An unexpected error has occurred with offline clicker logic.', 'error');
+  console.info("runOfflineClicker starting…");
+
+  // Validate inputs
+  if (!Number.isFinite(dateStartedMs) || dateStartedMs <= 0) {
+    console.warn("Invalid dateStartedMs:", dateStartedMs);
     return 0;
   }
+  if (!Number.isFinite(dateEndedMs) || dateEndedMs <= 0) {
+    console.warn("Invalid dateEndedMs:", dateEndedMs);
+    return 0;
   }
+  if (!Number.isFinite(offlineClickerCount) || offlineClickerCount <= 0) {
+    console.warn("Invalid offlineClickerCount:", offlineClickerCount);
+    return 0;
+  }
+  if (!Number.isFinite(clickerGain) || clickerGain <= 0) {
+    console.warn("Invalid clickerGain:", clickerGain);
+    return 0;
+  }
+
+  const secondsElapsed = Math.floor((dateEndedMs - dateStartedMs) / 1000);
+  if (secondsElapsed <= 0) {
+    console.warn("Invalid time range: secondsElapsed =", secondsElapsed);
+    return 0;
+  }
+
+  const incrementsPerClicker = Math.floor(secondsElapsed / 10);
+  const totalGained = incrementsPerClicker * offlineClickerCount * clickerGain;
+
+  console.log("Offline clicker debug →", {
+    secondsElapsed,
+    incrementsPerClicker,
+    offlineClickerCount,
+    clickerGain,
+    totalGained
+  });
+
+  if (totalGained > 0) {
+    showSaveMessage(`Offline clickers added ${totalGained} clicks!`, 'success');
+  } else {
+    console.info("No offline gains awarded (totalGained = 0)");
+  }
+
+  console.info("runOfflineClicker completed.");
+  return totalGained;
+}
 
   // intentionally obfuscated function
   function AUTO_DETECTOR() {
@@ -238,28 +305,31 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
 
   // adds a click * multiplier count to the val "count" and runs AUTO_DETECTOR() while playing audio
   function incrementCount() {
-    const now = Date.now();
-    clickTimestamps = [...clickTimestamps, now];
-    if (clickTimestamps.length > WINDOW) {
-      clickTimestamps = clickTimestamps.slice(-WINDOW);
-    }
-    if (AUTO_DETECTOR()) {
-      alert("Autoclicker detected! Progress reset.");
-      quickReset();
-      clickTimestamps = [];
-      return;
-    }
-    count = Math.min(MAX_COUNT, count + amountGained);
-    try {
-      audio?.play();
-    } catch (e) {
-      console.warn('Audio play failed:', e);
-      if (!audioWarningShown) {
-        showSaveMessage('Audio playback failed', 'error');
-        audioWarningShown = true;
-      }
+  const now = Date.now();
+  clickTimestamps = [...clickTimestamps, now];
+  if (clickTimestamps.length > WINDOW) {
+    clickTimestamps = clickTimestamps.slice(-WINDOW);
+  }
+
+  if (typeof AUTO_DETECTOR === 'function' && AUTO_DETECTOR()) {
+    alert("Autoclicker detected! Progress reset.");
+    quickReset();
+    clickTimestamps = [];
+    return;
+  }
+
+  count = Math.min(MAX_COUNT, count + amountGained);
+
+  try {
+    audio?.play();
+  } catch (e) {
+    console.warn('Audio play failed:', e);
+    if (!audioWarningShown) {
+      showSaveMessage('Audio playback failed', 'error');
+      audioWarningShown = true;
     }
   }
+}
 
   // reset confirmation
   function reset() {
@@ -301,41 +371,18 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
 
   // runs fetch functions and sets up audio, prepares autosave
   onMount(async () => {
-    console.info("onMount beginning");
-    audio = new Audio('/lib/audios/meow.mp3');
-    await fetchState().catch((e) => console.error('Fetch failed:', e));
-    loaded = true;
-    saveInterval = setInterval(saveState(true), 60000);
+  console.info("onMount beginning");
 
-    // Offline clicker logic: apply offline gain based on offlineClickerCount
-    const lastClose_str = localStorage.getItem('barth_last_close');
-    const lastClose = parseInt(lastClose_str);
-    try {
-    console.log("lastClose from localStorage:", lastClose);
-    if (lastClose) {
-      const lastMs = parseInt(lastClose, 10);
-      if (!Number.isNaN(lastMs)) {
-        const now = Date.now();
-        console.info("Preparing to run offlineClicker")
-        const offlineClickerGains = await runOfflineClicker(lastMs, now);
-        if (offlineClickerGains == null || offlineClickerGains === undefined || isNaN(offlineClickerGains)) {
-          throw new Error('Invalid offline clicker gains');
-        }
-        let count_old = count;
-        count = count + offlineClickerGains;
-        console.info("Offline clicker gains applied:", offlineClickerGains);
-        console.info("Old count:", count_old, "New count:", count);
-        // save after adding offline gains
-        saveState(false).catch(() => {});
-      }
-      localStorage.removeItem('barth_last_close');
-    }
-  } catch (e) {
-    console.error('Error during offline clicker initialization:', e);
-    showSaveMessage('An unexpected error has occurred with offline clicker logic.', 'error');
-  }
+  audio = new Audio('/lib/audios/meow.mp3');
+
+  await fetchState();
+
+  saveInterval = setInterval(() => saveState(true), 60000);
+
+  loaded = true;
+
   console.info("onMount completed successfully");
-  });
+});
 
   // runs logic for when the site is closed
   onDestroy(() => {
