@@ -32,7 +32,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
   // AUTO_DETECT vars and consts
   let clickTimestamps = [];
   const WINDOW = 15;
-  const MS_INTVL = 90;
+  const MS_INTVL = math.floor(math.random() * 10) + 90;;
   const MS_VARNC = 5;
 
   function toNumber(v, def = 0) {
