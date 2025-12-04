@@ -1,7 +1,7 @@
 <!--Barth Site source code
 Please refrain from tampering with anything here while attempting to use the site properly
 Documentation can be found at least somewhat in the comments
-Leave any error reports or feature suggestions in the issues page on GitHub-->
+Leave any error reports or feature suggestions in the issues page on GitHub, or if you fix it yourself make it a pull request.-->
 <script>
   import { onMount, onDestroy } from 'svelte';
 
@@ -24,6 +24,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
   let audioWarningShown = false;
   let offlineClickerCount = 0;
   let offlineClickerCost = 500;
+  let playAudio = true;
 
   let saveMessage = '';
   let saveMessageType = '';
@@ -319,14 +320,15 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
   }
 
   count = Math.min(MAX_COUNT, count + amountGained);
-
-  try {
-    audio?.play();
-  } catch (e) {
-    console.warn('Audio play failed:', e);
-    if (!audioWarningShown) {
-      showSaveMessage('Audio playback failed', 'error');
-      audioWarningShown = true;
+  if (playAudio) {
+    try {
+      audio?.play();
+    } catch (e) {
+      console.warn('Audio play failed:', e);
+      if (!audioWarningShown) {
+        showSaveMessage('Audio playback failed', 'error');
+        audioWarningShown = true;
+      }
     }
   }
 }
@@ -411,6 +413,9 @@ Leave any error reports or feature suggestions in the issues page on GitHub-->
     {confirmReset ? "Are you sure?" : "Reset"}
   </button>
   <button class="button" on:click={() => saveState(true)}>Update</button>
+  <button class="button" on:click={() => playAudio = !playAudio}>
+    {playAudio ? "Mute Audio" : "Unmute Audio"}
+  </button>
 
   <br><br>
 
