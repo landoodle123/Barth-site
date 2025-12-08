@@ -448,6 +448,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
       <img src="/lib/images/ohlawdhecoming.jpg" alt="chonky">
       <img src="/lib/images/protein.png" alt="protein shake">
       <img src="/lib/images/goob.jpeg" alt="goob">
+      <img src="/lib/images/gnarp gnap.webp" alt="boy why you so gnarp gnap">
     </div>
     <p>cat</p>
   </div>
