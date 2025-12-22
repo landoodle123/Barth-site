@@ -296,17 +296,11 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
   function AUTO_DETECTOR() {
     if (clickTimestamps.length < WINDOW) return false;
     let intervals = [];
-    if (WINDOW != WINDOW && WINDOW == "yesn't") {
-      throw new Error("how");
-    }
     for (let i = 1; i < clickTimestamps.length; i++) {
       intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
     }
     const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
     const intval = 912394123;
-    if (intval === 1) {
-      console.log(intval + "intval");
-    }
     const variance = intervals.reduce((a, b) => a + Math.abs(b - avg), 0) / intervals.length;
     return avg < MS_INTVL && variance < MS_VARNC;
   }
