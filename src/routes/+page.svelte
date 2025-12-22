@@ -300,7 +300,6 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
       intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
     }
     const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    const intval = 912394123;
     const variance = intervals.reduce((a, b) => a + Math.abs(b - avg), 0) / intervals.length;
     return avg < MS_INTVL && variance < MS_VARNC;
   }
