@@ -23,7 +23,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     return json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
-  // 🔐 Secure random session token
+  // Secure random session token
   const sessionToken = crypto.randomBytes(32).toString('hex');
 
   await prisma.user.update({
