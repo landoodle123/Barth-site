@@ -49,9 +49,9 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
     if (!res.ok) {
       console.error('Failed to fetch game state', res.status);
       if (res.status === 401) {
-        showSaveMessage('Not logged in, progress will not be saved', 'error');
+        showMessageBox('Not logged in, progress will not be saved', 'error');
       } else {
-        showSaveMessage('Failed to load save data from server. Error: ' + res.status, 'error');
+        showMessageBox('Failed to load save data from server. Error: ' + res.status, 'error');
       }
       return;
     }
@@ -99,7 +99,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
         await saveState(false).catch((e) => console.error('Save after offline gain failed:', e));
       } catch (e) {
         console.error('Error during offline clicker logic:', e);
-        showSaveMessage('An error occurred with offline clicker logic.', 'error');
+        showMessageBox('An error occurred with offline clicker logic.', 'error');
       }
 
       localStorage.removeItem('barth_last_close');
@@ -107,7 +107,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
 
   } catch (e) {
     console.error('Error fetching game state:', e);
-    showSaveMessage('Error fetching game state. Error: ' + (e?.message ?? e), 'error');
+    showMessageBox('Error fetching game state. Error: ' + (e?.message ?? e), 'error');
   }
 }
 
@@ -139,28 +139,28 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
 
       if (res.ok) {
         if (showMessage === true) {
-          showSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
+          showMessageBox(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
         }
         return true;
       } else {
         const data = await res.json().catch(() => ({}));
         if (data.error === 'anticheat') {
-          showSaveMessage('Anticheat violation detected, progress reset.', 'error');
+          showMessageBox('Anticheat violation detected, progress reset.', 'error');
           quickReset();
         } else {
-          showSaveMessage('Save failed! Server error', 'error');
+          showMessageBox('Save failed! Server error', 'error');
         }
         return false;
       }
     } catch (e) {
-      showSaveMessage('Save failed! Disconnected from network', 'error');
+      showMessageBox('Save failed! Disconnected from network', 'error');
       return false;
     }
     
   }
 
   // shows save message box on screen
-  function showSaveMessage(message, type) {
+  function showMessageBox(message, type) {
     saveMessage = message;
     saveMessageType = type;
     clearTimeout(saveMessageTimeout);
@@ -227,7 +227,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
       count -= offlineClickerCost;
       offlineClickerCount += 1;
       offlineClickerCost = Math.floor(offlineClickerCost * 2.5);
-      showSaveMessage(`Bought offline clicker. You have ${offlineClickerCount}.`, 'success');
+      showMessageBox(`Bought offline clicker. You have ${offlineClickerCount}.`, 'success');
 
       // immediate save; revert if save fails
       const ok = await saveState(true);
@@ -236,10 +236,10 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
         count = oldCount;
         offlineClickerCount = oldOfflineCount;
         offlineClickerCost = Math.max(1, Math.floor(offlineClickerCost / 2.5));
-        showSaveMessage('Purchase failed to persist. Reverted.', 'error');
+        showMessageBox('Purchase failed to persist. Reverted.', 'error');
       }
     } else {
-      showSaveMessage('Not enough clicks to buy offline clicker.', 'error');
+      showMessageBox('Not enough clicks to buy offline clicker.', 'error');
     }
   }
 
@@ -283,7 +283,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
   });
 
   if (totalGained > 0) {
-    showSaveMessage(`Offline clickers added ${totalGained} clicks!`, 'success');
+    showMessageBox(`Offline clickers added ${totalGained} clicks!`, 'success');
   } else {
     console.info("No offline gains awarded (totalGained = 0)");
   }
@@ -326,7 +326,7 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
     } catch (e) {
       console.warn('Audio play failed:', e);
       if (!audioWarningShown) {
-        showSaveMessage('Audio playback failed', 'error');
+        showMessageBox('Audio playback failed', 'error');
         audioWarningShown = true;
       }
     }
