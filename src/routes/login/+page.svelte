@@ -1,35 +1,40 @@
 <script lang="js">
+  import bcrypt from "bcryptjs";
+  import { loggedIn } from '../stores/auth.js'; // ← import the store
+
   let email = '';
   let password = '';
   let remember = false;
   let error = '';
   let loading = false;
+  let date = Date.now();
+  date = date.toString();
+  const salt = bcrypt.genSaltSync(10);
+  let sessionID;
 
   async function handleLogin() {
     error = '';
-
     if (password.length < 8) {
       error = 'Password must be at least 8 characters.';
       return;
     }
-
     loading = true;
-
+    sessionID = bcrypt.hashSync(date, salt)
     const res = await fetch('/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, remember })
+      body: JSON.stringify({ email, password, remember, sessionID })
     });
-
     loading = false;
-
     if (res.ok) {
-      window.location.href = '/';
+      loggedIn.set(true); // ← update the store immediately
+      window.location.href = '/'; // optional: still redirect if you want
     } else {
       error = (await res.json()).error || 'Login failed';
     }
   }
 </script>
+
 
 <main>
   <form class="login-form" on:submit|preventDefault={handleLogin}>
