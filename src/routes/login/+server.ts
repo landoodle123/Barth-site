@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-  const { email, password, remember } = await request.json();
+  const { email, password, remember, sessionID } = await request.json();
 
   if (!email || !password || password.length < 8) {
     return json({ error: 'Invalid credentials' }, { status: 400 });
@@ -22,12 +22,11 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     return json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
-  // Set a cookie for session (for demo, just user id; use JWT or session id in production)
-  cookies.set('session', user.id, {
+  cookies.set('session', sessionID, {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
-    secure: false, // set to true in production with HTTPS
+    secure: true,
     maxAge: remember ? 60 * 60 * 24 * 30 : undefined // 30 days if remember, else session cookie
   });
 

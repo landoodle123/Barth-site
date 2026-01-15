@@ -1,9 +1,14 @@
-<script lang="ts">
+<script lang="js">
+  import bcrypt from "bcryptjs";
   let email = '';
   let password = '';
   let remember = false;
   let error = '';
   let loading = false;
+  let date = Date.now();
+  date = date.toString();
+  const salt = bcrypt.genSaltSync(10);
+  let sessionID;
 
   async function handleLogin() {
     error = '';
@@ -12,10 +17,11 @@
       return;
     }
     loading = true;
+    sessionID = bcrypt.hashSync(date, salt)
     const res = await fetch('/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, remember })
+      body: JSON.stringify({ email, password, remember, sessionID })
     });
     loading = false;
     if (res.ok) {
