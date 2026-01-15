@@ -1,6 +1,6 @@
 <script lang="js">
   import bcrypt from "bcryptjs";
-  import { loggedIn } from '../stores/auth.js'; // ← import the store
+  import { loggedIn } from '/src/stores/auth.js';
 
   let email = '';
   let password = '';
