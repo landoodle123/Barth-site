@@ -1,4 +1,4 @@
-# /src/rouutes/+page.svelte:
+# /src/routes/+page.svelte:
 This file contains the home page for the site.
 **Variables:**
 * MAX_COUNT: prevents overflow errors
