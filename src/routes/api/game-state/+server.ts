@@ -3,36 +3,77 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 
 const prisma = new PrismaClient();
 
-// Utility to safely serialize BigInt values
-function serializeBigInts(obj: Record<string, any>) {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => [
-      key,
-      typeof value === 'bigint' ? value.toString() : value
-    ])
+const MAX_COUNT = 2_000_000_000; // cap to avoid DB/overflow issues
+const ANTICHEAT_JUMP = 500_000_000;
+
+/* -------------------- helpers -------------------- */
+
+// clamp and convert to BigInt safely
+function toSafeBigInt(v: unknown, def = 0): bigint {
+  const n = Number(v ?? def);
+  const clamped = Math.max(
+    0,
+    Math.min(MAX_COUNT, Math.floor(Number.isFinite(n) ? n : def))
   );
+  return BigInt(clamped);
 }
 
-// Obfuscated anti-cheat: resets if account <1 day old and jump is huge
-function _ac(prev, next, createdAt) {
-  const now = Date.now();
-  const created = new Date(createdAt).getTime();
-  const age = (now - created) / (1000 * 60 * 60 * 24);
-  const prevCount = Number(prev.count ?? 0);
-  const nextCount = Number(next.count ?? 0);
-  const jump = nextCount - prevCount;
-  return age < 1 && jump > 500_000_000;
+function serializeBigInts(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(serializeBigInts);
+
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (typeof v === 'bigint') out[k] = v.toString();
+    else if (v instanceof Date) out[k] = v.toISOString();
+    else if (v && typeof v === 'object') out[k] = serializeBigInts(v);
+    else out[k] = v;
+  }
+  return out;
 }
 
-export const GET: RequestHandler = async ({ locals }) => {
+function isAntiCheat(prev: any, nextCountNum: number) {
+  const prevNum = Number(prev?.count ?? 0);
+  const jump = nextCountNum - prevNum;
+
+  if (nextCountNum > MAX_COUNT) return true;
+  if (jump > ANTICHEAT_JUMP) return true;
+
+  return false;
+}
+
+/* -------- session validation (NO locals.user) -------- */
+
+async function getUserFromSession(cookies: any) {
+  const token = cookies.get('session');
+  if (!token) return null;
+
+  return prisma.user.findUnique({
+    where: { sessionToken: token }
+  });
+}
+
+/* -------------------- GET -------------------- */
+
+export const GET: RequestHandler = async ({ cookies }) => {
   try {
-    const userId = locals.user?.id;
-    if (!userId) return json({ error: 'Not logged in' }, { status: 401 });
+    const user = await getUserFromSession(cookies);
+    if (!user) {
+      return json({ error: 'Not logged in' }, { status: 401 });
+    }
 
-    let gameState = await prisma.gameState.findUnique({ where: { userId } });
+    let gameState = await prisma.gameState.findUnique({
+      where: { userId: user.id }
+    });
+
     if (!gameState) {
-      await prisma.gameState.create({ data: { userId } });
-      gameState = await prisma.gameState.findUnique({ where: { userId } });
+      await prisma.gameState.create({
+        data: { userId: user.id }
+      });
+
+      gameState = await prisma.gameState.findUnique({
+        where: { userId: user.id }
+      });
     }
 
     return json(serializeBigInts(gameState));
@@ -42,45 +83,75 @@ export const GET: RequestHandler = async ({ locals }) => {
   }
 };
 
-export const POST: RequestHandler = async ({ request, locals }) => {
-  try {
-    const userId = locals.user?.id;
-    if (!userId) return json({ error: 'Not logged in' }, { status: 401 });
+/* -------------------- POST -------------------- */
 
-    const data = await request.json();
-    const prev = await prisma.gameState.findUnique({ where: { userId } });
-    const user = await prisma.user.findUnique({ 
-      where: { id: userId },
-      select: { id: true, name: true, email: true, password: true }
+export const POST: RequestHandler = async ({ request, cookies }) => {
+  try {
+    const user = await getUserFromSession(cookies);
+    if (!user) {
+      return json({ error: 'Not logged in' }, { status: 401 });
+    }
+
+    const body = await request.json();
+
+    const clientCountNum = Number(body?.count ?? 0);
+    const prev = await prisma.gameState.findUnique({
+      where: { userId: user.id }
     });
 
-    // Remove 'createdAt' from user select, since it's not in your schema
-    // Instead, use the createdAt from the GameState model (if you want creation time)
-    if (prev && prev.userId && prev.updatedAt && _ac(prev, { count: data.count ?? 0 }, prev.updatedAt)) {
+    if (prev && isAntiCheat(prev, clientCountNum)) {
+      // reset on anticheat
       await prisma.gameState.update({
-      where: { userId },
-      data: {
-        count: 0,
-        amountGained: 1,
-        clickerCount: 0,
-        clickerCost: 100,
-        multiplierCost: 150,
-        clickerMultiplierCost: 1000,
-        clickerGain: 1
-      }
+        where: { userId: user.id },
+        data: {
+          count: BigInt(0),
+          amountGained: BigInt(1),
+          clickerCount: BigInt(0),
+          clickerCost: BigInt(100),
+          multiplierCost: BigInt(150),
+          clickerMultiplierCost: BigInt(1000),
+          clickerGain: BigInt(1),
+          offlineClickerCount: BigInt(0),
+          offlineClickerCost: BigInt(500)
+        }
       });
+
       return json({ error: 'anticheat' }, { status: 403 });
     }
 
+    const safe = {
+      count: toSafeBigInt(body?.count ?? 0),
+      amountGained: toSafeBigInt(body?.amountGained ?? 1),
+      clickerCount: toSafeBigInt(body?.clickerCount ?? 0),
+      clickerCost: toSafeBigInt(body?.clickerCost ?? 100),
+      multiplierCost: toSafeBigInt(body?.multiplierCost ?? 150),
+      clickerMultiplierCost: toSafeBigInt(
+        body?.clickerMultiplierCost ?? 1000
+      ),
+      clickerGain: toSafeBigInt(body?.clickerGain ?? 1),
+
+      ...(body?.offlineClickerCount !== undefined
+        ? { offlineClickerCount: toSafeBigInt(body.offlineClickerCount) }
+        : {}),
+
+      ...(body?.offlineClickerCost !== undefined
+        ? { offlineClickerCost: toSafeBigInt(body.offlineClickerCost) }
+        : {})
+    };
+
     await prisma.gameState.upsert({
-      where: { userId },
-      update: data,
-      create: { userId, ...data }
+      where: { userId: user.id },
+      update: safe,
+      create: { userId: user.id, ...safe }
     });
 
-    return json({ success: true });
+    const saved = await prisma.gameState.findUnique({
+      where: { userId: user.id }
+    });
+
+    return json(serializeBigInts(saved));
   } catch (err) {
-    console.error('API error:', err);
+    console.error('POST /api/game-state error:', err);
     return json({ error: 'Internal server error' }, { status: 500 });
   }
 };

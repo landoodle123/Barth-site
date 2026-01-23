@@ -1,3 +1,5 @@
+// logout handler, clears session cookie
+
 export async function POST({ cookies }) {
   cookies.set('session', '', {
     path: '/',

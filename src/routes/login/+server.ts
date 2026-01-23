@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import type { RequestHandler } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -22,13 +23,20 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     return json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
-  // Set a cookie for session (for demo, just user id; use JWT or session id in production)
-  cookies.set('session', user.id, {
+  // Secure random session token
+  const sessionToken = crypto.randomBytes(32).toString('hex');
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { sessionToken }
+  });
+
+  cookies.set('session', sessionToken, {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
-    secure: false, // set to true in production with HTTPS
-    maxAge: remember ? 60 * 60 * 24 * 30 : undefined // 30 days if remember, else session cookie
+    secure: true,
+    maxAge: remember ? 60 * 60 * 24 * 30 : undefined
   });
 
   return json({ success: true });

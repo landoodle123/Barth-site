@@ -1,6 +1,14 @@
+<!--Barth Site source code
+Please refrain from tampering with anything here while attempting to use the site properly
+Documentation can be found at least somewhat in the comments
+Leave any error reports or feature suggestions in the issues page on GitHub, or if you fix it yourself make it a pull request.-->
 <script>
   import { onMount, onDestroy } from 'svelte';
 
+  // Max safe value to avoid DB/BigInt issues
+  const MAX_COUNT = 2_000_000_000;
+
+  // variable declarations
   let count = 0;
   let amountGained = 1;
   let clickerCount = 0;
@@ -8,68 +16,151 @@
   let multiplierCost = 150;
   let clickerMultiplierCost = 1000;
   let clickerGain = 1;
-  let clickerIntervals = [];
+  let clickerInterval = null; // single interval for all clickers
   let confirmReset = false;
   let loaded = false;
   let saveInterval;
+  let audio;
+  let audioWarningShown = false;
+  let offlineClickerCount = 0;
+  let offlineClickerCost = 500;
+  let playAudio = true;
 
   let saveMessage = '';
   let saveMessageType = '';
   let saveMessageTimeout;
 
+  // AUTO_DETECT vars and consts
   let clickTimestamps = [];
-  const AUTODETECT_WINDOW = 15;
-  const MIN_INTERVAL_MS = 90;
-  const MAX_VARIANCE_MS = 5;
+  const WINDOW = 15;
+  const MS_INTVL = Math.floor(Math.random() * 10) + 90;
+  const MS_VARNC = 5;
+
+  function toNumber(v, def = 0) {
+    // handle strings (including BigInt serialized as string) and numbers
+    if (v === undefined || v === null) return def;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : def;
+  }
 
   async function fetchState() {
-  const res = await fetch('/api/game-state');
-  if (res.ok) {
-    const data = await res.json();
-    count = parseInt(data.count ?? "0");
-    amountGained = parseInt(data.amountGained ?? "1");
-    clickerCount = parseInt(data.clickerCount ?? "0");
-    clickerCost = parseInt(data.clickerCost ?? "100");
-    multiplierCost = parseInt(data.multiplierCost ?? "150");
-    clickerMultiplierCost = parseInt(data.clickerMultiplierCost ?? "1000");
-    clickerGain = parseInt(data.clickerGain ?? "1");
-  }
-}
-
-  async function saveState() {
   try {
-    const res = await fetch('/api/game-state', {
-      method: 'POST',
-      headers: { 
-  'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        count,
-        amountGained,
-        clickerCount,
-        clickerCost,
-        multiplierCost,
-        clickerMultiplierCost,
-        clickerGain
-      })
-    });
-    if (res.ok) {
-      showSaveMessage(`Saved at ${new Date().toLocaleTimeString()} successfully`, 'success');
-    } else {
-      const data = await res.json();
-      if (data.error === 'anticheat') {
-        showSaveMessage('Anticheat violation detected, progress reset.', 'error');
-        quickReset();
+    const res = await fetch('/api/game-state');
+    if (!res.ok) {
+      console.error('Failed to fetch game state', res.status);
+      if (res.status === 401) {
+        showMessageBox('Not logged in, progress will not be saved', 'error');
       } else {
-        showSaveMessage('Save failed! E: Server error', 'error');
+        showMessageBox('Failed to load save data from server. Error: ' + res.status, 'error');
       }
+      return;
     }
+
+    const data = await res.json();
+
+    // Parse and clamp values
+    count = Math.min(MAX_COUNT, Math.max(0, toNumber(data.count, 0)));
+    amountGained = Math.max(1, toNumber(data.amountGained, 1));
+    clickerCount = Math.max(0, toNumber(data.clickerCount, 0));
+    clickerCost = Math.max(1, toNumber(data.clickerCost, 100));
+    multiplierCost = Math.max(1, toNumber(data.multiplierCost, 150));
+    clickerMultiplierCost = Math.max(1, toNumber(data.clickerMultiplierCost, 1000));
+    clickerGain = Math.max(1, toNumber(data.clickerGain, 1));
+    offlineClickerCount = Math.max(0, toNumber(data.offlineClickerCount ?? 0, 0));
+    offlineClickerCost = Math.max(1, toNumber(data.offlineClickerCost ?? 500, 500));
+
+    startAllClickers();
+
+    // Offline clicker logic
+    const lastCloseStr = localStorage.getItem('barth_last_close');
+    const lastClose = parseInt(lastCloseStr, 10);
+
+    console.info("Offline clickers about to begin");
+    console.info("Last close time:", lastClose);
+    if (isNaN(lastClose)) {
+      console.error("Last close time is NaN");
+    }
+    if (Number.isFinite(lastClose) && lastClose > 0) {
+      try {
+        const now = Date.now();
+        console.info("Preparing to run offlineClicker");
+        
+        const offlineClickerGains = runOfflineClicker(lastClose, now);
+        if (!Number.isFinite(offlineClickerGains)) {
+          throw new Error('Invalid offline clicker gains');
+        }
+
+        const countOld = count;
+        count += offlineClickerGains;
+
+        console.info("Offline clicker gains applied:", offlineClickerGains);
+        console.info("Old count:", countOld, "New count:", count);
+
+        await saveState(false).catch((e) => console.error('Save after offline gain failed:', e));
+      } catch (e) {
+        console.error('Error during offline clicker logic:', e);
+        showMessageBox('An error occurred with offline clicker logic.', 'error');
+      }
+
+      localStorage.removeItem('barth_last_close');
+    }
+
   } catch (e) {
-    showSaveMessage('Save failed! E: Disconnected from network', 'error');
+    console.error('Error fetching game state:', e);
+    showMessageBox('Error fetching game state. Error: ' + (e?.message ?? e), 'error');
   }
 }
 
-  function showSaveMessage(message, type) {
+  async function saveState(showMessage) {
+    try {
+      localStorage.setItem('barth_last_close', Date.now());
+    } catch (e) {
+      console.error("Error saving last close time to localStorage:", e);
+    }
+    try {
+      // ensure numeric values and cap to avoid DB errors
+      const payload = {
+        count: Math.min(MAX_COUNT, Math.max(0, Math.floor(Number(count || 0)))),
+        amountGained: Math.max(1, Math.floor(Number(amountGained || 1))),
+        clickerCount: Math.max(0, Math.floor(Number(clickerCount || 0))),
+        clickerCost: Math.max(1, Math.floor(Number(clickerCost || 100))),
+        multiplierCost: Math.max(1, Math.floor(Number(multiplierCost || 150))),
+        clickerMultiplierCost: Math.max(1, Math.floor(Number(clickerMultiplierCost || 1000))),
+        clickerGain: Math.max(1, Math.floor(Number(clickerGain || 1))),
+        offlineClickerCount: Math.max(0, Math.floor(Number(offlineClickerCount || 0))),
+        offlineClickerCost: Math.max(1, Math.floor(Number(offlineClickerCost || 500)))
+      };
+
+      const res = await fetch('/api/game-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        if (showMessage === true) {
+          showMessageBox(`Saved at ${new Date().toLocaleTimeString()}`, 'success');
+        }
+        return true;
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === 'anticheat') {
+          showMessageBox('Anticheat violation detected, progress reset.', 'error');
+          quickReset();
+        } else {
+          showMessageBox('Save failed! Server error', 'error');
+        }
+        return false;
+      }
+    } catch (e) {
+      showMessageBox('Save failed! Disconnected from network', 'error');
+      return false;
+    }
+    
+  }
+
+  // shows save message box on screen
+  function showMessageBox(message, type) {
     saveMessage = message;
     saveMessageType = type;
     clearTimeout(saveMessageTimeout);
@@ -79,92 +170,180 @@
     }, 3000);
   }
 
+  // disables built-in clickers
   function clearAllClickers() {
-    clickerIntervals.forEach(clearInterval);
-    clickerIntervals = [];
-  }
-
-  function startAllClickers() {
-    clearAllClickers();
-    for (let i = 0; i < clickerCount; i++) {
-      const interval = setInterval(() => {
-        count = count + clickerGain;
-      }, 1000);
-      clickerIntervals.push(interval);
+    if (clickerInterval) {
+      clearInterval(clickerInterval);
+      clickerInterval = null;
     }
   }
 
+  // enables built-in clickers (single interval for efficiency)
+  function startAllClickers() {
+    clearAllClickers();
+    if (clickerCount > 0) {
+      clickerInterval = setInterval(() => {
+        // add clicks per second: clickerCount * clickerGain
+        count = Math.min(MAX_COUNT, count + clickerCount * clickerGain);
+      }, 1000);
+    }
+  }
+
+  // purchases a new clicker and increases the cost
   function buyClicker() {
     if (count >= clickerCost) {
-      count = count - clickerCost;
-      clickerCount = clickerCount + 1;
+      count -= clickerCost;
+      clickerCount += 1;
       clickerCost = Math.floor(clickerCost * 2.5);
       startAllClickers();
     }
   }
 
+  // purchases a new multiplier and increases the cost
   function buyMultiplier() {
     if (count >= multiplierCost) {
-      count = count - multiplierCost;
-      amountGained = amountGained * 2;
+      count -= multiplierCost;
+      amountGained *= 2;
       multiplierCost = Math.floor(multiplierCost * 3);
     }
   }
 
+  // purchases a new clickerMultiplier and increases the cost
   function buyClickerMultiplier() {
     if (count >= clickerMultiplierCost) {
-      count = count - clickerMultiplierCost;
-      clickerGain = clickerGain * 2;
+      count -= clickerMultiplierCost;
+      clickerGain *= 2;
       clickerMultiplierCost = Math.floor(clickerMultiplierCost * 15);
       startAllClickers();
     }
   }
 
-  function detectAutoclicker() {
-    if (clickTimestamps.length < AUTODETECT_WINDOW) return false;
+  // offline clicker purchase
+  async function buyOfflineClicker() {
+    if (count >= offlineClickerCost) {
+      // optimistic update
+      const oldCount = count;
+      const oldOfflineCount = offlineClickerCount;
+      count -= offlineClickerCost;
+      offlineClickerCount += 1;
+      offlineClickerCost = Math.floor(offlineClickerCost * 2.5);
+      showMessageBox(`Bought offline clicker. You have ${offlineClickerCount}.`, 'success');
+
+      // immediate save; revert if save fails
+      const ok = await saveState(true);
+      if (!ok) {
+        // revert optimistic changes
+        count = oldCount;
+        offlineClickerCount = oldOfflineCount;
+        offlineClickerCost = Math.max(1, Math.floor(offlineClickerCost / 2.5));
+        showMessageBox('Purchase failed to persist. Reverted.', 'error');
+      }
+    } else {
+      showMessageBox('Not enough clicks to buy offline clicker.', 'error');
+    }
+  }
+
+  // run offline clickers between two timestamps (ms)
+  function runOfflineClicker(dateStartedMs, dateEndedMs) {
+  console.info("runOfflineClicker starting…");
+
+  // Validate inputs
+  if (!Number.isFinite(dateStartedMs) || dateStartedMs <= 0) {
+    console.warn("Invalid dateStartedMs:", dateStartedMs);
+    return 0;
+  }
+  if (!Number.isFinite(dateEndedMs) || dateEndedMs <= 0) {
+    console.warn("Invalid dateEndedMs:", dateEndedMs);
+    return 0;
+  }
+  if (!Number.isFinite(offlineClickerCount) || offlineClickerCount <= 0) {
+    console.warn("Invalid offlineClickerCount:", offlineClickerCount);
+    return 0;
+  }
+  if (!Number.isFinite(clickerGain) || clickerGain <= 0) {
+    console.warn("Invalid clickerGain:", clickerGain);
+    return 0;
+  }
+
+  const secondsElapsed = Math.floor((dateEndedMs - dateStartedMs) / 1000);
+  if (secondsElapsed <= 0) {
+    console.warn("Invalid time range: secondsElapsed =", secondsElapsed);
+    return 0;
+  }
+
+  const incrementsPerClicker = Math.floor(secondsElapsed / 10);
+  const totalGained = incrementsPerClicker * offlineClickerCount * clickerGain;
+
+  console.log("Offline clicker debug →", {
+    secondsElapsed,
+    incrementsPerClicker,
+    offlineClickerCount,
+    clickerGain,
+    totalGained
+  });
+
+  if (totalGained > 0) {
+    showMessageBox(`Offline clickers added ${totalGained} clicks!`, 'success');
+  } else {
+    console.info("No offline gains awarded (totalGained = 0)");
+  }
+
+  console.info("runOfflineClicker completed.");
+  return totalGained;
+}
+
+  // intentionally obfuscated function
+  function AUTO_DETECTOR() {
+    if (clickTimestamps.length < WINDOW) return false;
     let intervals = [];
     for (let i = 1; i < clickTimestamps.length; i++) {
       intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
     }
     const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
     const variance = intervals.reduce((a, b) => a + Math.abs(b - avg), 0) / intervals.length;
-    return avg < MIN_INTERVAL_MS && variance < MAX_VARIANCE_MS;
+    return avg < MS_INTVL && variance < MS_VARNC;
   }
 
+  // adds a click * multiplier count to the val "count" and runs AUTO_DETECTOR() while playing audio
   function incrementCount() {
-    const now = Date.now();
-    clickTimestamps = [...clickTimestamps, now];
-    if (clickTimestamps.length > AUTODETECT_WINDOW) {
-      clickTimestamps = clickTimestamps.slice(-AUTODETECT_WINDOW);
-    }
-    if (detectAutoclicker()) {
-      alert("Autoclicker detected! Progress reset.");
-      quickReset();
-      clickTimestamps = [];
-      return;
-    }
-    count = count + amountGained;
+  const now = Date.now();
+  clickTimestamps = [...clickTimestamps, now];
+  if (clickTimestamps.length > WINDOW) {
+    clickTimestamps = clickTimestamps.slice(-WINDOW);
   }
 
+  if (typeof AUTO_DETECTOR === 'function' && AUTO_DETECTOR()) {
+    alert("Autoclicker detected! Progress reset.");
+    quickReset();
+    clickTimestamps = [];
+    return;
+  }
+
+  count = Math.min(MAX_COUNT, count + amountGained);
+  if (playAudio) {
+    try {
+      audio?.play();
+    } catch (e) {
+      console.warn('Audio play failed:', e);
+      if (!audioWarningShown) {
+        showMessageBox('Audio playback failed', 'error');
+        audioWarningShown = true;
+      }
+    }
+  }
+}
+
+  // reset confirmation
   function reset() {
     if (confirmReset) {
-      count = 0;
-      clickerCount = 0;
-      clickerCost = 100;
-      multiplierCost = 150;
-      clickerMultiplierCost = 1000;
-      clickerGain = 1;
-      amountGained = 1;
-      clearAllClickers();
-      confirmReset = false;
-      startAllClickers();
-      saveState();
+      quickReset();
     } else {
       confirmReset = true;
       setTimeout(() => (confirmReset = false), 3000);
     }
   }
 
+  // resets all vals, used in reset() and for ac violations
   function quickReset() {
     count = 0;
     clickerCount = 0;
@@ -173,28 +352,41 @@
     clickerMultiplierCost = 1000;
     clickerGain = 1;
     amountGained = 1;
+    offlineClickerCount = 0;
+    offlineClickerCost = 500;
     clearAllClickers();
     confirmReset = false;
     startAllClickers();
-    saveState();
+    // ensure we save cleaned state (fire-and-forget)
+    saveState(true).catch(() => {});
   }
 
+  // checks for enter key exploit
   function handleKeydown(e) {
     if (e.key === "Enter") {
-      alert("Enter key pressed! Progress reset. The enter key can be used to cheat significant amounts of points rapidly, thus pressing it can reset your progress.");
+      alert("Enter key pressed! Progress reset.");
       e.preventDefault();
       e.stopPropagation();
       quickReset();
     }
   }
 
+  // runs fetch functions and sets up audio, prepares autosave
   onMount(async () => {
-    await fetchState();
-    startAllClickers();
-    loaded = true;
-    saveInterval = setInterval(saveState, 60000); // Save every minute
-  });
+  console.info("onMount beginning");
 
+  audio = new Audio('/lib/audios/meow.mp3');
+
+  await fetchState();
+
+  saveInterval = setInterval(() => saveState(true), 60000);
+
+  loaded = true;
+
+  console.info("onMount completed successfully");
+});
+
+  // runs logic for when the site is closed
   onDestroy(() => {
     clearAllClickers();
     if (saveInterval) clearInterval(saveInterval);
@@ -202,35 +394,62 @@
 </script>
 
 {#if saveMessage}
-  <div class="save-popup {saveMessageType}">
-    {saveMessage}
-  </div>
+  <div class="save-popup {saveMessageType}">{saveMessage}</div>
 {/if}
 
 {#if loaded}
 <main>
   <h1>Welcome to the Great Realm of Bartholomue!</h1>
   <h2>The best site ever</h2>
-  <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>Pet Bartholomue ✋🐈</button>
+  <button class="button" on:click={incrementCount} on:keydown={handleKeydown}>
+    Pet Bartholomue ✋🐈
+  </button>
   <p>Bartholomue has been petted {count} times.</p>
-  <p class="warningLabel">Warning, pressing "enter" with the site focused *will* reset your progress.</p>
+  <p class="warningLabel">
+    Warning, pressing "enter" with the site focused *will* reset your progress.
+  </p>
+
   <button class="resetbutton" on:click={reset}>
     {confirmReset ? "Are you sure?" : "Reset"}
   </button>
-  <button class="button" on:click={saveState}>Update</button>
+  <button class="button" on:click={() => saveState(true)}>Update</button>
+  <button class="button" on:click={() => playAudio = !playAudio}>
+    {playAudio ? "Mute Audio" : "Unmute Audio"}
+  </button>
+
   <br><br>
-  <button on:click={buyClicker} class="button">Add Clicker ({clickerCost} clicks)</button>
-  <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks per second!</p>
+
+  <button class="button" on:click={buyClicker}>Add Clicker ({clickerCost} clicks)</button>
+  <p>You have {clickerCount} clickers running, each adding {clickerGain} clicks/sec!</p>
+
   <br>
-  <button on:click={buyMultiplier} class="button">Add Multiplier ({multiplierCost} clicks)</button>
-  <p>Each click is being multiplied by {amountGained}!</p>
+
+  <button class="button" on:click={buyMultiplier}>Add Multiplier ({multiplierCost} clicks)</button>
+  <p>Each click is multiplied by {amountGained}!</p>
+
   <br>
-  <button on:click={buyClickerMultiplier} class="button">Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
+
+  <button class="button" on:click={buyClickerMultiplier}>Add Clicker Multiplier ({clickerMultiplierCost} clicks)</button>
+
+  <br><br>
+
+  <button class="button" on:click={buyOfflineClicker}>Buy Offline Clicker ({offlineClickerCost} clicks)</button>
+  <p>You have {offlineClickerCount} offline clickers. They earn 1 click per 10s each while you're away.</p>
+
   <div class="photogallery">
     <h2>Photo Gallery</h2>
-    <img src="/lib/images/bartholomue.png" alt="bartholomue the great">
-    <img src="/lib/images/imAllEars.jpg" alt="i'm all ears looking ahh cat">
-    <img src="/lib/images/catThatProbWantsFood.jpg" alt="cat that definitely wants food">
+    <div class="grid">
+      <img src="/lib/images/bartholomue.png" alt="bartholomue the great">
+      <img src="/lib/images/imAllEars.jpg" alt="i'm all ears looking ahh cat">
+      <img src="/lib/images/catThatProbWantsFood.jpg" alt="cat that definitely wants food">
+      <img src="/lib/images/bonk.jpg" alt="sneak attack">
+      <img src="/lib/images/cat.png" alt="cat">
+      <img src="/lib/images/cokecat.png" alt="coke cat">
+      <img src="/lib/images/ohlawdhecoming.jpg" alt="chonky">
+      <img src="/lib/images/protein.png" alt="protein shake">
+      <img src="/lib/images/goob.jpeg" alt="goob">
+      <img src="/lib/images/gnarp gnap.webp" alt="boy why you so gnarp gnap">
+    </div>
     <p>cat</p>
   </div>
 </main>
@@ -244,6 +463,7 @@
 {/if}
 
 <style>
+  /*stylesheets are fairly self-explanatory*/
   .warningLabel {
     color: red;
     font-weight: bold;
@@ -251,7 +471,7 @@
   .resetbutton {
     background-color: red;
     color: white;
-    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
     border: none;
     border-radius: 25px;
     padding: 10px 20px;
@@ -259,11 +479,20 @@
     transition: background-color 0.3s;
   }
   .photogallery {
-    width: 200px;
-    height: auto;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
+    width: 80%;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .grid {
+    column-count: 3;
+    column-gap: 15px;
+  }
+  .grid img {
+    width: 100%;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    break-inside: avoid;
   }
   .save-popup {
     position: fixed;
@@ -296,57 +525,56 @@
     min-height: 40vh;
   }
   .spinner {
-  color: #ffffff;
-  font-size: 45px;
-  text-indent: -9999em;
-  overflow: hidden;
-  width: 1em;
-  height: 1em;
-  border-radius: 50%;
-  position: relative;
-  transform: translateZ(0);
-  animation: mltShdSpin 1.7s infinite ease, round 1.7s infinite ease;
-}
+    color: #ffffff;
+    font-size: 45px;
+    text-indent: -9999em;
+    overflow: hidden;
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    position: relative;
+    transform: translateZ(0);
+    animation: mltShdSpin 1.7s infinite ease, round 1.7s infinite ease;
+  }
+  @keyframes mltShdSpin {
+    0% {
+      box-shadow: 0 -0.83em 0 -0.4em,
+      0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em,
+      0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
+    }
+    5%,
+    95% {
+      box-shadow: 0 -0.83em 0 -0.4em, 
+      0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em, 
+      0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
+    }
+    10%,
+    59% {
+      box-shadow: 0 -0.83em 0 -0.4em, 
+      -0.087em -0.825em 0 -0.42em, -0.173em -0.812em 0 -0.44em, 
+      -0.256em -0.789em 0 -0.46em, -0.297em -0.775em 0 -0.477em;
+    }
+    20% {
+      box-shadow: 0 -0.83em 0 -0.4em, -0.338em -0.758em 0 -0.42em,
+      -0.555em -0.617em 0 -0.44em, -0.671em -0.488em 0 -0.46em, 
+      -0.749em -0.34em 0 -0.477em;
+    }
+    38% {
+      box-shadow: 0 -0.83em 0 -0.4em, -0.377em -0.74em 0 -0.42em,
+      -0.645em -0.522em 0 -0.44em, -0.775em -0.297em 0 -0.46em, 
+      -0.82em -0.09em 0 -0.477em;
+    }
+    100% {
+      box-shadow: 0 -0.83em 0 -0.4em, 0 -0.83em 0 -0.42em, 
+      0 -0.83em 0 -0.44em, 0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
+    }
+  }
 
-@keyframes mltShdSpin {
-  0% {
-    box-shadow: 0 -0.83em 0 -0.4em,
-    0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em,
-    0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
+  @keyframes round {
+    0% { transform: rotate(0deg) }
+    100% { transform: rotate(360deg) }
   }
-  5%,
-  95% {
-    box-shadow: 0 -0.83em 0 -0.4em, 
-    0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em, 
-    0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
-  }
-  10%,
-  59% {
-    box-shadow: 0 -0.83em 0 -0.4em, 
-    -0.087em -0.825em 0 -0.42em, -0.173em -0.812em 0 -0.44em, 
-    -0.256em -0.789em 0 -0.46em, -0.297em -0.775em 0 -0.477em;
-  }
-  20% {
-    box-shadow: 0 -0.83em 0 -0.4em, -0.338em -0.758em 0 -0.42em,
-     -0.555em -0.617em 0 -0.44em, -0.671em -0.488em 0 -0.46em, 
-     -0.749em -0.34em 0 -0.477em;
-  }
-  38% {
-    box-shadow: 0 -0.83em 0 -0.4em, -0.377em -0.74em 0 -0.42em,
-     -0.645em -0.522em 0 -0.44em, -0.775em -0.297em 0 -0.46em, 
-     -0.82em -0.09em 0 -0.477em;
-  }
-  100% {
-    box-shadow: 0 -0.83em 0 -0.4em, 0 -0.83em 0 -0.42em, 
-    0 -0.83em 0 -0.44em, 0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em;
-  }
-}
-
-@keyframes round {
-  0% { transform: rotate(0deg) }
-  100% { transform: rotate(360deg) }
-}
- 
+  
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
