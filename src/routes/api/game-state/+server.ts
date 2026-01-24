@@ -18,15 +18,15 @@ function toSafeBigInt(v: unknown, def = 0): bigint {
   return BigInt(clamped);
 }
 
-export function serializeBigInts(obj: any): any {
+export function _serializeBigInts(obj: any): any {
   if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(serializeBigInts);
+  if (Array.isArray(obj)) return obj.map(_serializeBigInts);
 
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (typeof v === 'bigint') out[k] = v.toString();
     else if (v instanceof Date) out[k] = v.toISOString();
-    else if (v && typeof v === 'object') out[k] = serializeBigInts(v);
+    else if (v && typeof v === 'object') out[k] = _serializeBigInts(v);
     else out[k] = v;
   }
   return out;
@@ -76,7 +76,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
       });
     }
 
-    return json(serializeBigInts(gameState));
+    return json(_serializeBigInts(gameState));
   } catch (err) {
     console.error('GET /api/game-state error:', err);
     return json({ error: 'Internal server error' }, { status: 500 });
@@ -149,7 +149,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
       where: { userId: user.id }
     });
 
-    return json(serializeBigInts(saved));
+    return json(_serializeBigInts(saved));
   } catch (err) {
     console.error('POST /api/game-state error:', err);
     return json({ error: 'Internal server error' }, { status: 500 });
