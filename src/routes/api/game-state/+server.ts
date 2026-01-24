@@ -18,7 +18,7 @@ function toSafeBigInt(v: unknown, def = 0): bigint {
   return BigInt(clamped);
 }
 
-function serializeBigInts(obj: any): any {
+export function serializeBigInts(obj: any): any {
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(serializeBigInts);
 
