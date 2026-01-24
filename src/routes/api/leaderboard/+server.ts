@@ -10,7 +10,7 @@ export const GET = async () => {
       take: 10, // top 10
     });
 
-    return json(serializeBigInts(leaderboard));
+    return json(_serializeBigInts(leaderboard));
   } catch (err) {
     console.error('GET /api/leaderboard error:', err);
     return json({ error: 'Internal server error' }, { status: 500 });
