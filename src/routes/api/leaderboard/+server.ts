@@ -1,6 +1,6 @@
 import { prisma } from '$lib/server/prisma';
 import { json } from '@sveltejs/kit';
-import { serializeBigInts } from '../game-state/+server';
+import { _serializeBigInts } from '../game-state/+server';
 
 export const GET = async () => {
   try {
