@@ -363,8 +363,8 @@ Leave any error reports or feature suggestions in the issues page on GitHub, or 
 
   // checks for enter key exploit
   function handleKeydown(e) {
-    if (e.key === "Enter") {
-      alert("Enter key pressed! Progress reset.");
+    if (e.key === "Enter" || e.key === " ") {
+      alert("Enter or Space key pressed! Progress reset.");
       e.preventDefault();
       e.stopPropagation();
       quickReset();
