@@ -15,6 +15,7 @@
     "devDependencies": {
         "@fontsource/fira-mono": "^5.0.0",
         "@neoconfetti/svelte": "^2.0.0",
+        "@sveltejs/adapter-netlify": "^6.0.4",
         "@sveltejs/adapter-vercel": "^6.3.4",
         "@sveltejs/kit": "^2.70.2",
         "@sveltejs/vite-plugin-svelte": "^5.0.0",
