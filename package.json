@@ -2,6 +2,9 @@
     "name": "barth-site-v2-beta",
     "private": true,
     "version": "0.0.1",
+    "engines": {
+	    "node": "22.x"
+	}
     "type": "module",
     "scripts": {
         "dev": "vite dev",
@@ -12,7 +15,7 @@
     "devDependencies": {
         "@fontsource/fira-mono": "^5.0.0",
         "@neoconfetti/svelte": "^2.0.0",
-        "@sveltejs/adapter-vercel": "^5.7.2",
+        "@sveltejs/adapter-vercel": "^6.3.4",
         "@sveltejs/kit": "^2.22.0",
         "@sveltejs/vite-plugin-svelte": "^5.0.0",
         "@tsconfig/svelte": "^5.0.4",
